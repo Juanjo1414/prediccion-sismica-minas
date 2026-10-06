@@ -6,9 +6,6 @@ __pycache__/
 # Checkpoints de Jupyter
 .ipynb_checkpoints/
 
-# Modelos entrenados: se generan corriendo los notebooks
-models/*.joblib
-
 # Gradio
 .gradio/
 flagged/
