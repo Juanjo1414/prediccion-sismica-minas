@@ -693,9 +693,9 @@ El equipo usa Claude Code, Codex y Antigravity. Para que todos trabajen igual, l
 
 ### Git
 
-- Una rama por tarea: `nb01-eda`, `nb02-rasgos`, `nb03-modelos`, `nb04-final`, `app`.
-- Cada tarea se integra con un Pull Request hacia `main`.
+- Todo se trabaja directamente en `main`: sin ramas auxiliares ni Pull Requests.
 - Mensajes de commit cortos en español con prefijo, por ejemplo `nb01: quitamos duplicados y columnas constantes`.
+- En los commits aparece solo el nombre de la persona: nunca un agente o herramienta de IA (sin `Co-Authored-By`, sin `Generated with ...`).
 - **Dos personas no editan el mismo notebook a la vez:** los `.ipynb` se mezclan muy mal.
 - Los agentes no hacen commit ni push sin que la persona a cargo lo pida.
 

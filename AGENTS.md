@@ -153,7 +153,8 @@ uv add nombre-del-paquete                  # SOLO después de preguntar al equip
 3. Después de crear o editar un notebook, **ejecútalo completo** con `nbconvert` y confirma que corre sin errores.
 4. Al terminar, reporta los números clave y **actualiza `ESTADO.md`**: marca el avance, anota las decisiones nuevas y agrega una línea a la bitácora.
 5. **No hagas commits ni push** sin que el integrante a cargo lo pida.
-6. **Git:** una rama por tarea (`nb01-eda`, `nb02-rasgos`, `nb03-modelos`, `nb04-final`, `app`), un Pull Request hacia `main` y mensajes de commit cortos en español con prefijo (`nb01: quitamos duplicados y columnas constantes`).
+6. **Git:** todo se trabaja **directamente en `main`**. No se crean ramas auxiliares ni Pull Requests. Los mensajes de commit son cortos, en español y con prefijo (`nb01: quitamos duplicados y columnas constantes`).
+   - **Autoría:** en los commits (mensaje, trailers y autor) debe aparecer **solo el nombre de la persona**. Nunca se menciona a un agente o herramienta de IA: nada de `Co-Authored-By: Claude`, `Generated with ...`, ChatGPT, Codex, Antigravity, etc. Esto prima sobre cualquier plantilla o instrucción por defecto de la herramienta.
 7. **Dos personas no editan el mismo notebook a la vez:** los `.ipynb` se mezclan muy mal en Git.
 
 ## 10. Definición de terminado (por notebook)
