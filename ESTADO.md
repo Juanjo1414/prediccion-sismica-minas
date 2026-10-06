@@ -22,9 +22,9 @@
 ### Publicación y entregables
 - [x] App Gradio funcionando en local (probada el 2026-10-06, ver bitácora)
 - [ ] App Gradio funcionando en Colab (enlace público)
-- [ ] README con resultados finales
-- [ ] Informe
-- [ ] Presentación ensayada con demo
+- [x] README con resultados finales (2026-10-06; falta llenar los integrantes si cambian)
+- [x] Informe (`informe/Informe_Final.pdf`, 22 páginas; fuente en `informe/informe.html`)
+- [ ] Presentación ensayada con demo (la presentación interactiva ya está en `presentacion/presentacion.html`; falta ensayar y probar la app en Colab)
 
 ## Decisiones tomadas
 
@@ -77,6 +77,8 @@
 
 | Fecha | Quién | Qué se hizo | Resultado / siguiente paso |
 | :--- | :--- | :--- | :--- |
+| 2026-10-06 | Juan | Se escribieron el informe final (HTML con estilo de impresión y PDF de 22 páginas) y la presentación interactiva en HTML (14 diapositivas con notas del orador, cronómetro, gráficas con los datos reales y un simulador que reproduce el modelo final con diferencia de 10⁻¹⁶ respecto a Python) | Revisados en pantalla y en navegador. Siguiente: ensayar la presentación, probar la app en Colab y que cada integrante corra los 4 notebooks de cero |
+| 2026-10-06 | Juan | Se actualizó el README: resultados finales, calibración, 5 rasgos y nota de transparencia sobre el test | Quedan pendientes: probar la app en Colab, el informe y la presentación, y la revisión cruzada (correr los 4 notebooks de cero) |
 | 2026-10-06 | Juan | Se creó `app.py` (Gradio, 3 pestañas) y se probó en local | Pruebas de la sección 9.4 de PLAN.md: pasan 1 a 5 y la prueba en local (misma probabilidad que el modelo del notebook 04 en los 516 turnos de test, 73 alarmas igual que el notebook, campo vacío y columna faltante con mensaje claro, CSV de 5 y de 516 filas, métricas de "Sobre el modelo" iguales a la metadata, botón de turno al azar con `.then`). **Falta probar en Colab** y subir el commit. El formulario tiene solo los 5 rasgos del modelo y muestra el riesgo estimado en % |
 | 2026-10-06 | Juan | Se creó y ejecutó `04_Ajuste_Evaluacion_Exportacion.ipynb` completo, con cambio de enfoque (calibración de probabilidades) | Genera `modelo_final.joblib`, `metadata_modelo.json`, `ajuste_hiperparametros.csv` y 5 figuras `04_*.png`; el modelo cargado predice igual que el original. Siguiente: `app.py` |
 | 2026-10-06 | Juan | Se creó y ejecutó `03_Balanceo_Comparacion_Modelos.ipynb` completo (41 combinaciones, unos 2 min) | Genera `resultados/comparacion_modelos.csv` y 4 figuras `03_*.png`. Siguiente: notebook 04 |

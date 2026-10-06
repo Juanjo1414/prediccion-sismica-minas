@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Predicción de peligro sísmico en minas de carbón — Informe final</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+:root{--tinta:#12171E;--pizarra:#3A4757;--gris:#667282;--linea:#CBD3CF;--fondo:#EEF0EE;--ambar:#F2A900;--ambar-o:#9A6A00;--azul:#2E7A9B}
+@page{size:A4;margin:24mm 22mm 24mm 22mm;@bottom-center{content:counter(page);font-family:'Barlow Condensed',Arial,sans-serif;font-size:10pt;color:#667282}}
+@page :first{margin:0;@bottom-center{content:none}}
+*{box-sizing:border-box}
+html{font-size:11pt}
+body{font-family:'Source Serif 4',Georgia,'Times New Roman',serif;color:var(--tinta);line-height:1.5;margin:0;text-align:justify;hyphens:auto}
+h1,h2,h3,h4{font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;color:var(--tinta);text-align:left;hyphens:none}
+h2{font-size:21pt;font-weight:700;margin:0 0 6pt;padding-top:4pt;border-top:3pt solid var(--tinta);page-break-after:avoid;letter-spacing:-.005em}
+h3{font-size:14.5pt;font-weight:600;margin:16pt 0 4pt;page-break-after:avoid}
+p{margin:0 0 7pt;orphans:3;widows:3}
+ul,ol{margin:0 0 8pt 1.2em;padding:0}li{margin:0 0 3pt}
+.seccion{page-break-before:always}
+.seccion:first-of-type{page-break-before:auto}
+em{font-style:italic}
+code{font-family:Consolas,'Courier New',monospace;font-size:9.5pt;background:#E9ECEA;padding:0 2pt;border-radius:2pt}
+figure{margin:10pt 0 12pt;page-break-inside:avoid;text-align:center}
+figure img{max-width:100%;max-height:112mm;display:block;margin:0 auto}
+figcaption{font-family:'Barlow Condensed',Arial,sans-serif;font-size:10pt;color:var(--pizarra);text-align:left;margin-top:4pt;line-height:1.3}
+.doble{display:grid;grid-template-columns:1fr 1fr;gap:8mm;page-break-inside:avoid}
+.doble figure img{max-height:70mm}
+table{border-collapse:collapse;width:100%;margin:8pt 0 12pt;font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;font-size:10.5pt;page-break-inside:avoid;text-align:left}
+th{background:var(--tinta);color:#fff;font-weight:600;padding:3pt 6pt;text-align:left}
+td{padding:2.5pt 6pt;border-bottom:.5pt solid var(--linea)}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+td code{word-break:break-all;font-size:8.5pt}
+tr.dest td{background:#FBEFC9;font-weight:600}
+caption{caption-side:top;text-align:left;font-size:10pt;color:var(--pizarra);padding-bottom:3pt;font-weight:500}
+.nota{border-left:3pt solid var(--ambar);background:#F7F3E6;padding:6pt 10pt;margin:8pt 0 10pt;text-align:left;font-size:10.5pt}
+.cita{font-size:10.5pt;margin-left:1.2em;text-indent:-1.2em;margin-bottom:4pt;text-align:left}
+/* portada */
+.portada{height:297mm;background:var(--tinta);color:#E9EDF0;padding:26mm 22mm;position:relative;page-break-after:always;overflow:hidden;text-align:left}
+.portada .inst{font-family:'Barlow Condensed',Arial,sans-serif;font-size:14pt;color:#8896A5;letter-spacing:.01em}
+.portada svg{position:absolute;left:0;top:70mm;width:100%;height:60mm}
+.portada h1{font-family:'Barlow Condensed','Arial Narrow',Arial,sans-serif;color:#E9EDF0;font-size:50pt;line-height:.98;font-weight:700;margin:0;position:absolute;left:22mm;right:22mm;top:122mm;letter-spacing:-.01em;text-align:left}
+.portada .sub{position:absolute;left:22mm;right:30mm;top:180mm;font-size:14pt;color:#B8C2CC;line-height:1.4}
+.portada .equipo{position:absolute;left:22mm;bottom:30mm;font-family:'Barlow Condensed',Arial,sans-serif;font-size:13pt;line-height:1.55;color:#E9EDF0}
+.portada .fecha{position:absolute;right:22mm;bottom:30mm;font-family:'Barlow Condensed',Arial,sans-serif;font-size:13pt;color:#8896A5;text-align:right}
+/* indice */
+.indice{page-break-after:always}
+.indice ol{list-style:none;margin:0;font-family:'Barlow Condensed',Arial,sans-serif;font-size:14pt;line-height:1.9}
+.indice li span{color:var(--gris);display:inline-block;width:2.2em}
+.resumen{page-break-after:always}
+</style>
+</head>
+<body>
+
+<!-- PORTADA -->
+<section class="portada">
+  <div class="inst">Universidad EIA · Fundamentos de Inteligencia Artificial · 2026-2</div>
+  <svg viewBox="0 0 800 160" preserveAspectRatio="none" aria-hidden="true">
+    <line x1="0" y1="45" x2="800" y2="45" stroke="#3A4757" stroke-width="1" stroke-dasharray="6 6"/>
+    <path d="M0 90 L12 94 L24 86 L36 93 L48 88 L60 95 L72 87 L84 92 L96 86 L108 94 L120 88 L132 93 L144 87 L156 92 L168 88 L180 94 L192 87 L204 92 L216 90 L228 94 L240 86 L252 93 L264 88 L276 94 L288 87 L300 92 L312 88 L324 93 L336 87 L348 94 L360 90 L372 93 L384 88 L396 92 L408 89 L420 93 L432 87 L444 92 L456 89 L468 94 L480 88 L492 93 L504 87 L516 92 L528 88 L540 93 L552 90 L564 95 L576 86 L588 93 L600 88 L612 92 L624 85 L632 40 L637 140 L642 20 L647 130 L652 44 L657 118 L662 62 L667 108 L672 74 L677 100 L684 82 L692 96 L700 86 L712 93 L724 88 L736 94 L748 87 L760 92 L772 88 L784 93 L800 89" fill="none" stroke="#F2A900" stroke-width="2.2" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+  </svg>
+  <h1>Predicción de peligro sísmico en minas de carbón</h1>
+  <div class="sub">Clasificación de turnos de trabajo con el conjunto seismic-bumps: comparación de 12 modelos con balanceo de clases, calibración de probabilidades y aplicación web.</div>
+  <div class="equipo">Juan Jose Jaramillo Mora<br>Sebastian Giraldo Franco<br>Martin Restrepo<br>Miguel Angel Zuleta<br>Julian Mora<br>Santiago Zuluaga</div>
+  <div class="fecha">Informe final<br>6 de octubre de 2026</div>
+</section>
+
+<!-- RESUMEN -->
+<section class="resumen">
+  <h2>Resumen</h2>
+  <p>Este trabajo aborda la predicción de eventos sísmicos de alta energía (más de 10⁴ julios) en minas de carbón subterráneas a partir de las mediciones del turno de trabajo anterior. Usamos el conjunto <em>seismic-bumps</em> de UCI, con 2.584 turnos de 8 horas de dos tajos largos de una mina en Polonia, de los cuales solo el 6,6 % precede a un evento peligroso. Se trata, por tanto, de una clasificación binaria con un desbalance fuerte, en la que un modelo que siempre responda «sin peligro» alcanza un accuracy de 93,4 % sin detectar ni un solo turno peligroso. Por esa razón la métrica principal es el F1 de la clase peligrosa.</p>
+  <p>El proceso se organizó en cuatro cuadernos reproducibles y una aplicación web. Tras el análisis exploratorio y la limpieza (6 duplicados y 3 columnas constantes eliminados), se separó una muestra de prueba del 20 % y se decidió el escalador (<code>MinMaxScaler</code>), que no se usara PCA y que el modelo trabajara con cinco rasgos (<code>gpuls</code>, <code>nbumps</code>, <code>nbumps2</code>, <code>nbumps3</code> y <code>energy</code>). Se compararon 12 clasificadores con 4 estrategias de balanceo (41 combinaciones) mediante validación cruzada estratificada de 10 particiones, siempre con el balanceo dentro del <em>pipeline</em> para evitar fuga de información.</p>
+  <p>El modelo final es una máquina de vectores de soporte lineal con submuestreo aleatorio y calibración sigmoide de las probabilidades, con un umbral de decisión de 0,10. En validación cruzada obtiene un F1 de 0,333; en la muestra de prueba, un F1 de 0,299, con 16 de 34 turnos peligrosos detectados y 57 falsas alarmas entre 482 turnos sin peligro. La calibración fue una decisión tomada a mitad del trabajo, después de descartar una primera versión cuyas probabilidades eran casi idénticas para todos los turnos; ese episodio, y el hecho de que la muestra de prueba ya había sido consultada una vez, se documentan con transparencia. Concluimos que el modelo sirve como alerta temprana que ordena los turnos por riesgo, no como un sistema que dé certeza.</p>
+  <p><strong>Palabras clave:</strong> peligro sísmico, minería de carbón, clasificación desbalanceada, F1, submuestreo, calibración de probabilidades, scikit-learn.</p>
+</section>
+
+<!-- INDICE -->
+<section class="indice">
+  <h2>Contenido</h2>
+  <ol>
+    <li><span>1</span>Introducción</li>
+    <li><span>2</span>El conjunto de datos</li>
+    <li><span>3</span>Análisis exploratorio</li>
+    <li><span>4</span>Preprocesamiento y partición</li>
+    <li><span>5</span>Escalado, PCA y selección de rasgos</li>
+    <li><span>6</span>Balanceo de clases y comparación de modelos</li>
+    <li><span>7</span>Modelo final: ajuste, calibración, umbral y evaluación</li>
+    <li><span>8</span>Aplicación web</li>
+    <li><span>9</span>Conclusiones, limitaciones y trabajo futuro</li>
+    <li><span>10</span>Referencias</li>
+    <li><span>A</span>Anexo: reproducibilidad y estructura del repositorio</li>
+  </ol>
+</section>
+
+<!-- 1 -->
+<section class="seccion">
+  <h2>1. Introducción</h2>
+  <p>En las minas de carbón subterráneas, la extracción modifica el estado de tensión de la roca circundante. Cuando esa tensión se libera de golpe se producen sacudidas sísmicas, conocidas en la literatura como <em>seismic bumps</em>, cuya energía puede ser suficiente para provocar derrumbes en el frente de trabajo y poner en riesgo a las personas. Las minas modernas cuentan con geófonos y sistemas de monitoreo que registran de forma continua la actividad sísmica, pero convertir esas mediciones en una alerta confiable sigue siendo un problema abierto: los eventos de mayor energía son raros, y la relación entre la actividad observada y el peligro inmediato no es simple.</p>
+  <p>El objetivo de este trabajo es construir y evaluar un modelo de aprendizaje automático que, con las mediciones de un turno de trabajo de 8 horas, estime si en el turno siguiente ocurrirá un evento sísmico de más de 10⁴ julios. Tratamos el problema como una clasificación binaria supervisada, donde la clase 1 corresponde a un turno peligroso y la clase 0 a uno sin peligro.</p>
+  <p>El reto central es el desbalance de clases. Solo el 6,6 % de los turnos son peligrosos, de modo que las métricas habituales engañan: un clasificador trivial que nunca da la alerta obtiene un accuracy superior al 93 %. Por eso el trabajo se organiza alrededor de tres decisiones metodológicas:</p>
+  <ul>
+    <li>usar el <strong>F1 de la clase peligrosa</strong> como métrica principal, acompañado de recall, precisión y ROC AUC, y relegar el accuracy a un papel de referencia;</li>
+    <li>aplicar el <strong>balanceo de clases dentro del <em>pipeline</em></strong> de validación cruzada, para que el remuestreo solo afecte a los datos de entrenamiento de cada partición;</li>
+    <li>reservar una <strong>muestra de prueba</strong> que no interviene en ninguna decisión de modelado, con el fin de estimar el desempeño final sin sesgo.</li>
+  </ul>
+  <p>El informe sigue el orden de los cuatro cuadernos del proyecto (exploración y limpieza; escalado, PCA y selección de rasgos; balanceo y comparación de modelos; ajuste, evaluación y exportación) y describe además la aplicación web que publica el modelo. Todo el código, los datos derivados, los modelos y las figuras están en el repositorio del proyecto, y cada resultado numérico de este documento puede reproducirse ejecutando los cuadernos en orden.</p>
+</section>
+
+<!-- 2 -->
+<section class="seccion">
+  <h2>2. El conjunto de datos</h2>
+  <p>Usamos <em>seismic-bumps</em>, publicado por Sikora y Wróbel (2010) en el repositorio de aprendizaje automático de UCI (identificador 266, licencia CC BY 4.0). Los datos provienen del monitoreo de dos tajos largos de una mina de carbón en Polonia. Cada fila resume un turno de 8 horas: contiene mediciones de ese turno y la variable objetivo indica si en el turno siguiente ocurrió un evento sísmico de más de 10⁴ J. El archivo oficial en formato ARFF tiene 2.584 filas y 19 columnas (18 variables de entrada y la clase), sin valores faltantes, y es el único que leen los cuadernos.</p>
+  <table>
+    <caption>Tabla 1. Variables del conjunto de datos.</caption>
+    <thead><tr><th>Variable</th><th>Descripción</th><th>Tipo</th></tr></thead>
+    <tbody>
+      <tr><td><code>seismic</code></td><td>Evaluación del peligro del turno con el método sísmico (a: sin peligro, b: bajo, c: alto, d: estado de peligro)</td><td>Categórica ordinal</td></tr>
+      <tr><td><code>seismoacoustic</code></td><td>Evaluación del peligro con el método sismoacústico</td><td>Categórica ordinal</td></tr>
+      <tr><td><code>ghazard</code></td><td>Evaluación sismoacústica basada solo en el geófono más activo</td><td>Categórica ordinal</td></tr>
+      <tr><td><code>shift</code></td><td>Tipo de turno: W (extracción de carbón) o N (preparación)</td><td>Categórica binaria</td></tr>
+      <tr><td><code>genergy</code>, <code>gpuls</code></td><td>Energía y número de pulsos registrados por el geófono más activo (GMax)</td><td>Numérica</td></tr>
+      <tr><td><code>gdenergy</code>, <code>gdpuls</code></td><td>Desviación de la energía y de los pulsos de GMax respecto al promedio de los 8 turnos previos</td><td>Numérica</td></tr>
+      <tr><td><code>nbumps</code></td><td>Número de sacudidas sísmicas del turno anterior</td><td>Numérica</td></tr>
+      <tr><td><code>nbumps2</code> … <code>nbumps5</code></td><td>Sacudidas por rango de energía (de 10² a 10⁶ J)</td><td>Numérica</td></tr>
+      <tr><td><code>nbumps6</code>, <code>nbumps7</code>, <code>nbumps89</code></td><td>Sacudidas de energía muy alta (de 10⁶ a 10¹⁰ J)</td><td>Numérica (constante)</td></tr>
+      <tr><td><code>energy</code>, <code>maxenergy</code></td><td>Energía total y energía máxima de las sacudidas del turno anterior</td><td>Numérica</td></tr>
+      <tr><td><code>class</code></td><td>1 si hubo un evento de más de 10⁴ J en el turno siguiente; 0 en caso contrario</td><td>Objetivo</td></tr>
+    </tbody>
+  </table>
+  <p>La clase objetivo está muy desbalanceada: 2.414 turnos sin peligro y 170 peligrosos, es decir, 93,42 % frente a 6,58 %. Esta proporción condiciona todo el diseño experimental y se discute en las secciones siguientes.</p>
+  <figure>
+    <img src="../figuras/01_distribucion_clase.png" alt="Distribución de la clase" style="max-height:52mm">
+    <figcaption>Figura 1. Distribución de la clase en el conjunto completo (2.584 turnos): 93,42 % sin peligro y 6,58 % peligrosos.</figcaption>
+  </figure>
+</section>
+
+<!-- 3 -->
+<section style="margin-top:14pt">
+  <h2>3. Análisis exploratorio</h2>
+  <h3>3.1 Variables categóricas</h3>
+  <p>Para cada variable categórica comparamos el porcentaje de turnos peligrosos en cada categoría con el promedio general (6,6 %). El tipo de turno es la más informativa: el 9,20 % de los turnos de extracción (W, 1.663 turnos) fue peligroso, frente al 1,85 % de los turnos de preparación (N, 921 turnos), lo que es coherente con una mayor actividad en la mina durante la extracción. La evaluación sísmica <code>seismic</code> también aporta: 9,65 % en la categoría b y 4,93 % en la a. En cambio, <code>seismoacoustic</code> y <code>ghazard</code> casi no distinguen entre categorías (entre 6,25 % y 6,90 %); la categoría c de <code>ghazard</code> tiene 0 % de turnos peligrosos, pero solo reúne 30 turnos.</p>
+  <table>
+    <caption>Tabla 2. Porcentaje de turnos peligrosos por categoría.</caption>
+    <thead><tr><th>Variable</th><th>Categoría</th><th class="n">Turnos</th><th class="n">% peligrosos</th></tr></thead>
+    <tbody>
+      <tr><td><code>shift</code></td><td>W (extracción)</td><td class="n">1.663</td><td class="n">9,20</td></tr>
+      <tr><td><code>shift</code></td><td>N (preparación)</td><td class="n">921</td><td class="n">1,85</td></tr>
+      <tr><td><code>seismic</code></td><td>a</td><td class="n">1.682</td><td class="n">4,93</td></tr>
+      <tr><td><code>seismic</code></td><td>b</td><td class="n">902</td><td class="n">9,65</td></tr>
+      <tr><td><code>seismoacoustic</code></td><td>a / b / c</td><td class="n">1.580 / 956 / 48</td><td class="n">6,39 / 6,90 / 6,25</td></tr>
+      <tr><td><code>ghazard</code></td><td>a / b / c</td><td class="n">2.342 / 212 / 30</td><td class="n">6,66 / 6,60 / 0,00</td></tr>
+    </tbody>
+  </table>
+  <h3>3.2 Variables numéricas</h3>
+  <p>Las variables de energía y de conteo de golpes son muy asimétricas hacia la derecha. La asimetría de <code>genergy</code> es 5,17, la de <code>energy</code> 9,94, la de <code>maxenergy</code> 11,04 y la de <code>nbumps5</code> 14,58. La mayoría de los turnos concentra valores cercanos a cero y unos pocos alcanzan valores enormes: <code>genergy</code> tiene una mediana de 25.485 J y un máximo de 2.595.650 J, y <code>energy</code> tiene mediana 0 y máximo 402.000 J. Al separar por clase, los turnos peligrosos muestran valores más altos de <code>nbumps</code> (mediana cercana a 2 frente a 0), <code>nbumps2</code>, <code>gpuls</code> y <code>genergy</code>, mientras que <code>gdenergy</code> y <code>gdpuls</code> tienen distribuciones casi superpuestas entre clases.</p>
+  <figure>
+    <img src="../figuras/01_boxplots_por_clase.png" alt="Diagramas de caja por clase">
+    <figcaption>Figura 2. Diagramas de caja de las variables numéricas según la clase. Las tres columnas constantes (<code>nbumps6</code>, <code>nbumps7</code>, <code>nbumps89</code>) aparecen como líneas planas.</figcaption>
+  </figure>
+  <h3>3.3 Correlación con la clase</h3>
+  <p>Como el conjunto mezcla variables categóricas y numéricas, medimos la relación entre variables con el coeficiente phik (Baak et al., 2020), que se define para ambos tipos. Ninguna variable tiene una relación fuerte con la clase. Las más altas son <code>nbumps</code> (0,350), <code>gpuls</code> (0,263), <code>genergy</code> (0,231), <code>shift</code> (0,216), <code>nbumps3</code> y <code>nbumps2</code> (0,196 cada una); <code>gdpuls</code>, <code>gdenergy</code>, <code>seismoacoustic</code> y <code>nbumps5</code> quedan en 0,000. Esto anticipa que el problema será difícil: no existe una variable que, por sí sola, separe bien los turnos peligrosos. También hay redundancia entre predictores: <code>energy</code> y <code>maxenergy</code> (0,96), <code>genergy</code> y <code>gpuls</code> (0,89), <code>nbumps4</code> y <code>energy</code> (0,88), y <code>seismoacoustic</code> y <code>ghazard</code> (0,84).</p>
+  <figure>
+    <img src="../figuras/01_correlacion_phik.png" alt="Matriz de correlación phik" style="max-height:100mm">
+    <figcaption>Figura 3. Matriz de correlación phik de las variables, tras la limpieza.</figcaption>
+  </figure>
+</section>
+
+<!-- 4 -->
+<section class="seccion">
+  <h2>4. Preprocesamiento y partición</h2>
+  <h3>4.1 Limpieza</h3>
+  <p>Se eliminaron 6 filas duplicadas, todas de clase 0, por lo que la limpieza no costó ningún turno peligroso: el conjunto pasó de 2.584 a 2.578 filas y conservó los 170 turnos de clase 1. También se eliminaron las tres columnas constantes (<code>nbumps6</code>, <code>nbumps7</code> y <code>nbumps89</code>), que valen cero en todos los turnos y por tanto no pueden contribuir a separar las clases. Tras la limpieza quedan 2.578 filas y 16 columnas (15 variables de entrada más la clase).</p>
+  <p>Decidimos <strong>no eliminar los valores extremos</strong>. Las energías muy altas corresponden a eventos sísmicos reales y son precisamente lo que el modelo debe aprender a anticipar; descartarlos eliminaría la señal de interés. El costo es que el escalado y los modelos deben manejar colas muy pesadas.</p>
+  <h3>4.2 Partición entrenamiento y prueba</h3>
+  <p>Se separó una muestra de prueba del 20 % con partición estratificada y semilla 42, <strong>una sola vez y antes de codificar las categóricas</strong>, para poder conservar una copia con las letras originales que usa la aplicación. El entrenamiento quedó con 2.062 turnos (136 peligrosos, 6,60 %) y la prueba con 516 turnos (34 peligrosos, 6,59 %). La estratificación funcionó: ambas muestras mantienen la proporción del conjunto completo (6,59 %). Desde ese momento la muestra de prueba no se utilizó para ninguna decisión de modelado hasta la evaluación final.</p>
+  <h3>4.3 Codificación de las categóricas</h3>
+  <p>Las evaluaciones de peligro (<code>seismic</code>, <code>seismoacoustic</code>, <code>ghazard</code>) van de menos a más (a &lt; b &lt; c &lt; d), por lo que se codificaron de forma ordinal con un diccionario fijo (a = 0, b = 1, c = 2, d = 3), que se conserva aunque la categoría d no aparezca en los datos. El tipo de turno se codificó como N = 0 y W = 1. Se prefirió la codificación ordinal a la <em>one-hot</em> porque conserva el orden natural y no multiplica las columnas. El mismo diccionario, guardado en un archivo, se usa en los cuadernos y en la aplicación, de modo que una letra siempre produzca el mismo número.</p>
+</section>
+
+<!-- 5 -->
+<section class="seccion">
+  <h2>5. Escalado, PCA y selección de rasgos</h2>
+  <p>Esta etapa se hizo únicamente con el conjunto de entrenamiento. Para comparar alternativas se usó siempre el mismo modelo de referencia, una regresión logística con <code>class_weight="balanced"</code>, y una validación cruzada estratificada de 10 particiones con semilla 42. Todo lo que aprende de los datos (escaladores y selectores de rasgos) se colocó dentro del <em>pipeline</em>, de modo que se ajuste solo con la parte de entrenamiento de cada partición.</p>
+  <h3>5.1 Escalado</h3>
+  <p>Se compararon tres opciones (sin escalar, <code>MinMaxScaler</code> y <code>StandardScaler</code>) con dos modelos sensibles a la escala, la regresión logística de referencia y una SVM con pesos de clase balanceados. El promedio de F1 entre ambos modelos fue 0,2656 con MinMax, 0,2580 con Standard y 0,2378 sin escalar, por lo que se eligió <strong>MinMaxScaler</strong>. Las diferencias son pequeñas frente a la desviación del F1 entre particiones (entre 0,03 y 0,06). Hay un efecto práctico adicional: la SVM sin escalar tardó unos 9 segundos y escalada, menos de uno.</p>
+  <table>
+    <caption>Tabla 3. F1 de la clase peligrosa en validación cruzada según el escalador.</caption>
+    <thead><tr><th>Escalador</th><th class="n">Regresión logística</th><th class="n">SVM</th><th class="n">Promedio</th></tr></thead>
+    <tbody>
+      <tr><td>Sin escalar</td><td class="n">0,250</td><td class="n">0,225</td><td class="n">0,238</td></tr>
+      <tr class="dest"><td>MinMaxScaler</td><td class="n">0,269</td><td class="n">0,262</td><td class="n">0,266</td></tr>
+      <tr><td>StandardScaler</td><td class="n">0,259</td><td class="n">0,257</td><td class="n">0,258</td></tr>
+    </tbody>
+  </table>
+  <h3>5.2 Análisis de componentes principales</h3>
+  <p>Con el escalador elegido, hacen falta 5 componentes para explicar el 90 % de la varianza y 7 para el 95 %, de un total de 15 rasgos; la primera componente explica el 45,8 % y la segunda el 25,8 %. Sin embargo, PCA no mejora el rendimiento: el F1 es 0,269 con todos los rasgos, 0,264 con PCA al 90 % y 0,267 con PCA al 95 %. En la proyección sobre las dos primeras componentes los turnos forman cuatro grupos, que atribuimos a las categóricas codificadas, y dentro de cada grupo los turnos peligrosos quedan mezclados con los demás: no existe una dirección simple que separe las clases. Decidimos <strong>no usar PCA</strong>, para no perder la interpretación de los rasgos.</p>
+  <div class="doble">
+    <figure><img src="../figuras/02_pca_varianza_acumulada.png" alt="Varianza acumulada"><figcaption>Figura 4. Varianza explicada acumulada por componente.</figcaption></figure>
+    <figure><img src="../figuras/02_pca_2d_por_clase.png" alt="PCA 2D"><figcaption>Figura 5. Turnos en las dos primeras componentes, según la clase.</figcaption></figure>
+  </div>
+  <h3>5.3 Selección de rasgos</h3>
+  <p>Se evaluaron seis métodos de selección, todos con el escalador elegido y el modelo de referencia: VarianceThreshold (sobre datos escalados a [0, 1]), SelectKBest con <code>f_classif</code> y con información mutua (probando todos los valores de <em>k</em>), RFECV, selección secuencial hacia adelante, selección con penalización L1 y selección por importancia SHAP (Lundberg y Lee, 2017) acumulando el 90 % de la importancia. Los selectores con ajuste supervisado se colocaron dentro del <em>pipeline</em>; VarianceThreshold, que no usa la clase, y SHAP, que no puede incluirse en un <em>pipeline</em> sin una clase propia, escogen sus rasgos una vez con el conjunto de entrenamiento, por lo que el F1 de SHAP puede ser algo optimista.</p>
+  <table>
+    <caption>Tabla 4. Métodos de selección de rasgos (F1 promedio ± desviación entre particiones).</caption>
+    <thead><tr><th>Método</th><th class="n">Rasgos</th><th class="n">F1</th><th class="n">Desv.</th><th class="n">ROC AUC</th></tr></thead>
+    <tbody>
+      <tr><td>SelectKBest <code>f_classif</code> (k = 1)</td><td class="n">1</td><td class="n">0,291</td><td class="n">0,071</td><td class="n">0,744</td></tr>
+      <tr><td>Selección hacia adelante (k = 1)</td><td class="n">1</td><td class="n">0,291</td><td class="n">0,071</td><td class="n">0,744</td></tr>
+      <tr class="dest"><td>SelectKBest información mutua (k = 5)</td><td class="n">5</td><td class="n">0,283</td><td class="n">0,068</td><td class="n">0,768</td></tr>
+      <tr><td>SHAP (90 % de la importancia)</td><td class="n">8</td><td class="n">0,282</td><td class="n">0,062</td><td class="n">0,775</td></tr>
+      <tr><td>RFECV</td><td class="n">1</td><td class="n">0,281</td><td class="n">0,065</td><td class="n">0,743</td></tr>
+      <tr><td>Todos los rasgos (línea base)</td><td class="n">15</td><td class="n">0,269</td><td class="n">0,043</td><td class="n">0,773</td></tr>
+      <tr><td>SelectFromModel con L1</td><td class="n">5</td><td class="n">0,262</td><td class="n">0,051</td><td class="n">0,774</td></tr>
+      <tr><td>VarianceThreshold (0,01)</td><td class="n">7</td><td class="n">0,258</td><td class="n">0,053</td><td class="n">0,776</td></tr>
+    </tbody>
+  </table>
+  <p>Todos los métodos quedan entre 0,258 y 0,291 de F1, dentro del ruido de la validación cruzada: ningún método es claramente mejor que otro. Tres métodos distintos (SelectKBest, RFECV y la selección hacia adelante) coinciden en que <code>nbumps</code>, el número de golpes sísmicos del turno anterior, es el rasgo que más información aporta. La regla de decisión definida en el plan (ganar el conjunto de mayor F1 y, si uno más pequeño queda dentro de una desviación del mejor, escoger el más pequeño) dejaba un único rasgo. Eso habría reducido el modelado a una comparación casi trivial y a una aplicación con un solo campo, así que el equipo la modificó antes de seguir: compiten únicamente los métodos con el selector dentro del <em>pipeline</em>, el conjunto debe tener al menos 3 rasgos y gana el de mayor F1. El resultado fue la información mutua con 5 rasgos (<code>gpuls</code>, <code>nbumps</code>, <code>nbumps2</code>, <code>nbumps3</code> y <code>energy</code>), con un F1 de 0,283 y un ROC AUC de 0,768 (0,744 con <code>nbumps</code> solo).</p>
+  <div class="nota">Limitaciones de esta decisión: escoger <em>k</em> entre 15 valores con la misma validación cruzada introduce algo de optimismo; <code>nbumps2</code> y <code>nbumps3</code> forman parte del conteo de <code>nbumps</code>, por lo que hay cierta redundancia; y <code>shift</code>, que en el análisis exploratorio mostró una diferencia grande de riesgo, no quedó entre los rasgos escogidos.</div>
+</section>
+
+<!-- 6 -->
+<section class="seccion">
+  <h2>6. Balanceo de clases y comparación de modelos</h2>
+  <p>Se compararon los 12 clasificadores vistos en el curso, ocho individuales (KNN, Naive Bayes, árbol de decisión, regresión logística, SVM, SVM lineal, red neuronal MLP y Random Forest) y cuatro ensambles (Bagging, AdaBoost, Gradient Boosting y Stacking), con cuatro estrategias de balanceo: sin balanceo, <code>class_weight="balanced"</code>, SMOTE (Chawla et al., 2002) y submuestreo aleatorio. La estrategia <code>class_weight</code> solo existe en cinco modelos (árbol, regresión logística, SVM, SVM lineal y Random Forest), de modo que se evaluaron 12 × 3 + 5 = <strong>41 combinaciones</strong>. Todas se evaluaron con validación cruzada estratificada de 10 particiones, con el escalador y el balanceo dentro de un <em>pipeline</em> de imbalanced-learn (Lemaître et al., 2017), de modo que el remuestreo nunca toca los datos de validación.</p>
+  <h3>6.1 Efecto del balanceo</h3>
+  <p>Balancear es lo que más pesa. Sin balanceo, el F1 promedio de los 12 modelos es 0,090 y el recall promedio apenas 0,080; con submuestreo sube a 0,250 de F1 y 0,645 de recall, con SMOTE a 0,234 y 0,481, y con <code>class_weight</code> (solo en 5 modelos) a 0,247 y 0,466. La precisión casi no se mueve entre estrategias (entre 0,154 y 0,179): balancear permite detectar muchos más turnos peligrosos, pero a costa de más falsas alarmas. El submuestreo fue la mejor estrategia en 8 de los 12 modelos, SMOTE en 2 (AdaBoost y Gradient Boosting) y <code>class_weight</code> en 2 (árbol y Random Forest).</p>
+  <table>
+    <caption>Tabla 5. Promedio de las métricas de la clase peligrosa por estrategia de balanceo (sobre los modelos en que aplica).</caption>
+    <thead><tr><th>Estrategia</th><th class="n">F1</th><th class="n">Recall</th><th class="n">Precisión</th><th class="n">ROC AUC</th><th class="n">Accuracy</th></tr></thead>
+    <tbody>
+      <tr><td>Sin balanceo</td><td class="n">0,090</td><td class="n">0,080</td><td class="n">0,154</td><td class="n">0,705</td><td class="n">0,921</td></tr>
+      <tr><td><code>class_weight</code> (5 modelos)</td><td class="n">0,247</td><td class="n">0,466</td><td class="n">0,179</td><td class="n">0,714</td><td class="n">0,825</td></tr>
+      <tr><td>SMOTE</td><td class="n">0,234</td><td class="n">0,481</td><td class="n">0,156</td><td class="n">0,681</td><td class="n">0,794</td></tr>
+      <tr class="dest"><td>Submuestreo</td><td class="n">0,250</td><td class="n">0,645</td><td class="n">0,157</td><td class="n">0,736</td><td class="n">0,734</td></tr>
+    </tbody>
+  </table>
+  <figure>
+    <img src="../figuras/03_heatmap_f1_modelo_estrategia.png" alt="Mapa de calor de F1" style="max-height:100mm">
+    <figcaption>Figura 6. F1 de la clase peligrosa para las 41 combinaciones (validación cruzada). Las celdas vacías son combinaciones que no existen.</figcaption>
+  </figure>
+  <h3>6.2 Modelos</h3>
+  <p>Los modelos que más aprovechan el balanceo son los que sin él se quedan casi en cero: la SVM lineal pasa de 0,000 a 0,291, la red neuronal de 0,000 a 0,277, AdaBoost de 0,000 a 0,272, la regresión logística de 0,028 a 0,298 y la SVM de 0,040 a 0,290. Naive Bayes ya rendía bien sin balancear (0,287) y mejora poco (0,309). KNN, el árbol de decisión, Bagging y Random Forest ganan poco y quedan por debajo de los modelos lineales (entre 0,185 y 0,231 en su mejor estrategia).</p>
+  <table>
+    <caption>Tabla 6. Las cinco mejores combinaciones por F1 (validación cruzada).</caption>
+    <thead><tr><th>Modelo</th><th>Estrategia</th><th class="n">F1</th><th class="n">Desv.</th><th class="n">Recall</th><th class="n">Precisión</th><th class="n">ROC AUC</th></tr></thead>
+    <tbody>
+      <tr class="dest"><td>Naive Bayes</td><td>Submuestreo</td><td class="n">0,309</td><td class="n">0,085</td><td class="n">0,615</td><td class="n">0,207</td><td class="n">0,778</td></tr>
+      <tr><td>Naive Bayes</td><td>SMOTE</td><td class="n">0,303</td><td class="n">0,060</td><td class="n">0,573</td><td class="n">0,207</td><td class="n">0,762</td></tr>
+      <tr class="dest"><td>Regresión logística</td><td>Submuestreo</td><td class="n">0,298</td><td class="n">0,069</td><td class="n">0,675</td><td class="n">0,192</td><td class="n">0,780</td></tr>
+      <tr class="dest"><td>SVM lineal</td><td>Submuestreo</td><td class="n">0,291</td><td class="n">0,074</td><td class="n">0,646</td><td class="n">0,189</td><td class="n">0,778</td></tr>
+      <tr><td>SVM</td><td>Submuestreo</td><td class="n">0,290</td><td class="n">0,067</td><td class="n">0,675</td><td class="n">0,186</td><td class="n">0,761</td></tr>
+    </tbody>
+  </table>
+  <p>La diferencia entre el primer y el quinto puesto es de solo 0,019 de F1, mucho menor que la desviación entre particiones (de 0,060 a 0,085 en esos modelos). Con 136 turnos peligrosos en el entrenamiento, <strong>no puede afirmarse que Naive Bayes sea mejor que la regresión logística o las SVM</strong>. Lo que sí es claro es que forman un grupo por encima de los árboles y de los ensambles. Pasaron al ajuste las tres mejores combinaciones de modelos distintos (filas resaltadas).</p>
+  <h3>6.3 La trampa del accuracy</h3>
+  <p>La Figura 7 muestra la relación entre el accuracy y el F1 de las 41 combinaciones. Sin balanceo el accuracy promedio es 0,921, y la SVM lineal, la red neuronal y AdaBoost llegan a 0,933 o 0,934, casi igual que el 0,934 de decir siempre «sin peligro», con un F1 de 0,000. En cambio, las mejores combinaciones por F1 tienen accuracy de 0,79 a 0,82, por debajo de esa línea. Guiarse por el accuracy habría llevado a elegir justo los modelos que no detectan nada.</p>
+  <figure>
+    <img src="../figuras/03_accuracy_vs_f1.png" alt="Accuracy contra F1" style="max-height:90mm">
+    <figcaption>Figura 7. Accuracy contra F1 en las 41 combinaciones; la línea punteada es el accuracy de un modelo que siempre responde «sin peligro».</figcaption>
+  </figure>
+</section>
+
+<!-- 7 -->
+<section class="seccion">
+  <h2>7. Modelo final: ajuste, calibración, umbral y evaluación</h2>
+  <h3>7.1 Una primera versión descartada</h3>
+  <p>La primera versión del cuaderno final siguió el plan al pie de la letra: se ajustaron los hiperparámetros de las tres mejores combinaciones con el F1 a umbral fijo y luego se eligió el umbral. Ganó la regresión logística con submuestreo y <code>C = 0,01</code>, con un F1 de 0,296 en la muestra de prueba (20 de 34 turnos peligrosos detectados y 81 falsas alarmas). Sin embargo, el modelo quedó tan regularizado que casi todas sus probabilidades estaban entre 0,49 y 0,56, y el umbral funcionaba en un borde tan fino (con 0,49 marcaba todos los turnos como peligrosos y con 0,51 el F1 caía de 0,310 a 0,237) que una aplicación no habría podido mostrar un riesgo con sentido.</p>
+  <div class="nota"><strong>Transparencia sobre la muestra de prueba.</strong> El problema se identificó con las probabilidades de validación cruzada del entrenamiento, no por el resultado en prueba. Aun así, el resultado de prueba de esa primera versión ya había sido visto, de modo que la evaluación de la versión final no es completamente virgen. Dejamos constancia de ello en el cuaderno, en el README y aquí. El cambio no buscó mejorar el número de prueba (el F1 final de 0,299 es prácticamente igual al de la primera versión, 0,296), sino obtener un modelo con probabilidades interpretables.</div>
+  <h3>7.2 Ajuste de hiperparámetros y calibración</h3>
+  <p>Se rehízo el ajuste con dos cambios. Primero, los hiperparámetros se buscaron con <code>GridSearchCV</code> usando la precisión promedio, que mide qué tan bien ordena el modelo los turnos y no depende del umbral. La búsqueda escogió <code>var_smoothing = 1e-9</code> para Naive Bayes, <code>C = 0,1</code> para la regresión logística y <code>C = 0,1</code> para la SVM lineal; con ello la regresión logística dejó de caer en el extremo más regularizado de la grilla. Segundo, se calibraron las probabilidades con <code>CalibratedClassifierCV</code> (método sigmoide, 5 particiones; Platt, 1999). El submuestreo entrena con la mitad de turnos peligrosos cuando en la realidad son el 6,6 %, y la calibración, ajustada con pliegues que conservan la proporción real, corrige esa distorsión. Se usó el método sigmoide y no el isotónico porque solo hay 136 turnos peligrosos. La calibración da además <code>predict_proba</code> a la SVM lineal, que no lo tiene.</p>
+  <table>
+    <caption>Tabla 7. Los tres candidatos con probabilidades calibradas (validación cruzada sobre el entrenamiento).</caption>
+    <thead><tr><th>Modelo (submuestreo)</th><th class="n">Umbral</th><th class="n">F1</th><th class="n">Recall</th><th class="n">Precisión</th><th class="n">ROC AUC</th><th class="n">Brier</th></tr></thead>
+    <tbody>
+      <tr><td>Naive Bayes</td><td class="n">0,16</td><td class="n">0,309</td><td class="n">0,478</td><td class="n">0,228</td><td class="n">0,750</td><td class="n">0,0571</td></tr>
+      <tr><td>Regresión logística</td><td class="n">0,10</td><td class="n">0,323</td><td class="n">0,515</td><td class="n">0,235</td><td class="n">0,776</td><td class="n">0,0580</td></tr>
+      <tr class="dest"><td>SVM lineal</td><td class="n">0,10</td><td class="n">0,333</td><td class="n">0,537</td><td class="n">0,242</td><td class="n">0,777</td><td class="n">0,0579</td></tr>
+    </tbody>
+  </table>
+  <p>Después de calibrar, la mediana de la probabilidad de los tres modelos queda entre 0,036 y 0,039, cerca de la proporción real de turnos peligrosos. El Brier (el error cuadrático de las probabilidades) de los tres, entre 0,057 y 0,058, es menor que los 0,0616 de asignar el 6,6 % a todos los turnos; la mejora es real pero modesta, cerca de un 6 %, lo que confirma que estos modelos tienen una capacidad limitada. Se escogió como modelo final la <strong>SVM lineal con submuestreo y calibración sigmoide</strong> por tener el mayor F1, aunque su ventaja de 0,010 sobre la regresión logística es un empate práctico.</p>
+  <h3>7.3 Umbral de decisión</h3>
+  <p>El umbral se escogió con las probabilidades calibradas de validación cruzada sobre el entrenamiento, probando valores de 0,01 a 0,95 de 0,01 en 0,01. El mejor es <strong>0,10</strong>, con F1 de 0,333, recall de 0,537 y precisión de 0,242. A diferencia de la primera versión, la curva es suave en torno al óptimo (F1 de 0,326 con 0,09, 0,329 con 0,11, 0,307 con 0,08 y 0,306 con 0,12). Las probabilidades calibradas se reparten entre 0,026 y 0,888, con una mediana de 0,039 y un promedio de 0,067.</p>
+  <div class="doble">
+    <figure><img src="../figuras/04_f1_recall_precision_vs_umbral.png" alt="Métricas contra umbral"><figcaption>Figura 8. F1, recall y precisión según el umbral (validación cruzada).</figcaption></figure>
+    <figure><img src="../figuras/04_curva_calibracion_cv.png" alt="Curva de calibración"><figcaption>Figura 9. Curva de calibración en validación cruzada (10 grupos de igual tamaño).</figcaption></figure>
+  </div>
+  <p>La curva de calibración queda cerca de la diagonal. Los turnos a los que el modelo asigna en promedio un 25 % de riesgo fueron peligrosos alrededor del 23 % de las veces, y los que reciben un 10 % lo fueron cerca del 17 %, de modo que en esa zona el modelo subestima algo. Ni siquiera el grupo de mayor riesgo supera, aproximadamente, uno de cada cuatro turnos realmente peligrosos: el modelo ordena los turnos, pero no puede afirmar que uno será peligroso con certeza.</p>
+  <h3>7.4 Evaluación en la muestra de prueba</h3>
+  <p>El modelo final se entrenó con todo el conjunto de entrenamiento y se evaluó en los 516 turnos de prueba (34 peligrosos) con el umbral de 0,10. <strong>Detectó 16 de los 34 turnos peligrosos</strong> (recall de 0,471) y dejó pasar 18. Dio 57 falsas alarmas entre los 482 turnos sin peligro (11,8 %), de modo que de sus 73 alarmas 16 fueron ciertas (precisión de 0,219). La probabilidad promedio predicha en la prueba fue 0,067 y la proporción real de turnos peligrosos 0,066: en promedio, el modelo está bien calibrado.</p>
+  <table>
+    <caption>Tabla 8. Métricas del modelo final en validación cruzada y en la muestra de prueba.</caption>
+    <thead><tr><th>Métrica (clase peligrosa)</th><th class="n">Validación cruzada</th><th class="n">Prueba</th></tr></thead>
+    <tbody>
+      <tr class="dest"><td>F1</td><td class="n">0,333</td><td class="n">0,299</td></tr>
+      <tr><td>Recall</td><td class="n">0,537</td><td class="n">0,471</td></tr>
+      <tr><td>Precisión</td><td class="n">0,242</td><td class="n">0,219</td></tr>
+      <tr><td>ROC AUC</td><td class="n">0,777</td><td class="n">0,744</td></tr>
+      <tr><td>Precisión promedio</td><td class="n">0,206</td><td class="n">0,192</td></tr>
+      <tr><td>Brier (referencia 0,0616)</td><td class="n">0,058</td><td class="n">0,059</td></tr>
+      <tr><td>Accuracy</td><td class="n">0,858</td><td class="n">0,855</td></tr>
+    </tbody>
+  </table>
+  <p>La prueba queda algo por debajo de la validación cruzada, lo cual es esperable: el umbral se escogió con esas mismas predicciones de validación (lo que es algo optimista) y, con solo 34 turnos peligrosos, cada turno detectado o no mueve el recall unos 3 puntos porcentuales. El modelo que siempre responde «sin peligro» tiene en la prueba un accuracy de 0,934, mayor que el 0,855 de nuestro modelo, pero un recall y un F1 de 0.</p>
+  <div class="doble">
+    <figure><img src="../figuras/04_matriz_confusion_test.png" alt="Matriz de confusión"><figcaption>Figura 10. Matriz de confusión en la muestra de prueba (umbral 0,10).</figcaption></figure>
+    <figure><img src="../figuras/04_curva_precision_recall_test.png" alt="Curva precisión-recall"><figcaption>Figura 11. Curva precisión-recall en la muestra de prueba.</figcaption></figure>
+  </div>
+</section>
+
+<!-- 8 -->
+<section class="seccion">
+  <h2>8. Aplicación web</h2>
+  <p>El modelo se publicó en una aplicación construida con Gradio (Abid et al., 2019), que carga el modelo exportado por el último cuaderno, el diccionario de codificación, la metadata y los turnos reales de la muestra de prueba. Se ejecuta en local con <code>uv run python app.py</code> y está preparada para ejecutarse en Google Colab. Tiene tres pestañas:</p>
+  <ul>
+    <li><strong>Evaluar un turno.</strong> Un formulario que se arma solo a partir de los rasgos registrados en la metadata del modelo (hoy, los cinco rasgos numéricos), con la descripción de cada variable. Muestra el veredicto («turno peligroso» o «sin peligro previsto»), el riesgo estimado en porcentaje y el umbral usado. El botón «Cargar un turno real al azar» llena el formulario con un turno de la muestra de prueba, lo evalúa y muestra qué ocurrió realmente.</li>
+    <li><strong>Subir un CSV.</strong> Recibe un archivo con un turno por fila y devuelve una tabla con la probabilidad y el veredicto de cada turno. Si faltan columnas, indica cuáles.</li>
+    <li><strong>Sobre el modelo.</strong> Muestra el modelo, la estrategia de balanceo, la calibración, el escalador, los rasgos, el umbral, las métricas de validación cruzada y de prueba, la fecha de entrenamiento y una nota sobre cómo leer los resultados.</li>
+  </ul>
+  <p>La aplicación incluye un aviso visible de que es un proyecto académico y no reemplaza los sistemas de monitoreo de una mina real. Se probaron los criterios definidos en el plan: la probabilidad calculada por la aplicación coincide exactamente con la del cuaderno final en los 516 turnos de prueba (diferencia máxima de 0,0; 73 alertas, igual que en el cuaderno); un campo vacío produce un mensaje de error claro en lugar de fallar; un CSV de 5 filas devuelve 5 predicciones y uno al que le falta una columna indica cuál; las métricas de la pestaña «Sobre el modelo» coinciden con la metadata; y el botón de turno aleatorio evalúa el turno cargado. La prueba en Google Colab queda pendiente de realizarse.</p>
+  <p>Para la presentación del trabajo se preparó además un simulador en el navegador que reproduce el mismo modelo calibrado a partir de sus coeficientes (diferencia numérica del orden de 10⁻¹⁶ respecto al modelo original), de modo que puede mostrarse en vivo sin servidor.</p>
+</section>
+
+<!-- 9 -->
+<section class="seccion">
+  <h2>9. Conclusiones, limitaciones y trabajo futuro</h2>
+  <h3>9.1 Conclusiones</h3>
+  <ul>
+    <li><strong>El desbalance define el problema.</strong> Con 6,6 % de turnos peligrosos, el accuracy no sirve: modelos con F1 de 0 tienen un accuracy de 0,933 o 0,934. La métrica principal debe ser el F1 de la clase peligrosa, y las conclusiones se leen junto con el recall y la precisión.</li>
+    <li><strong>Balancear es imprescindible.</strong> El F1 promedio de los 12 modelos pasa de 0,090 sin balanceo a entre 0,234 y 0,250 con balanceo. El submuestreo aleatorio fue la mejor estrategia en 8 de los 12 modelos; el precio es la precisión, que se queda cerca de 0,16 en promedio.</li>
+    <li><strong>Pocos rasgos bastan y el modelo es lineal.</strong> Cinco rasgos ligados a la actividad sísmica del turno anterior (<code>gpuls</code>, <code>nbumps</code>, <code>nbumps2</code>, <code>nbumps3</code> y <code>energy</code>) dan resultados similares a los de los 15 rasgos, y los modelos lineales superan a los árboles y a los ensambles en este conjunto.</li>
+    <li><strong>El modelo final es útil como alerta temprana.</strong> Con probabilidades calibradas, detecta cerca de la mitad de los turnos peligrosos de la muestra de prueba (16 de 34) con 57 falsas alarmas entre 482 turnos sin peligro, y ordena los turnos por riesgo con un ROC AUC de 0,744 en prueba.</li>
+    <li><strong>El resultado es modesto, y así debe presentarse.</strong> Un F1 cercano a 0,3 es lo que estos datos permiten con estos rasgos: está muy por encima de un modelo que nunca avisa, pero lejos de ser un sistema confiable. El Brier mejora solo un 6 % frente a la predicción constante.</li>
+  </ul>
+  <h3>9.2 Limitaciones</h3>
+  <ul>
+    <li><strong>Muestra pequeña de positivos.</strong> La prueba tiene 34 turnos peligrosos; cada uno mueve el recall unos 3 puntos. Las diferencias entre los mejores modelos son menores que el ruido de la validación cruzada.</li>
+    <li><strong>Uso previo de la muestra de prueba.</strong> El resultado de prueba de la primera versión del cuaderno final ya había sido visto antes de rehacerlo, por lo que la evaluación final no es completamente virgen. La razón del cambio fue la calidad de las probabilidades, detectada con datos de entrenamiento.</li>
+    <li><strong>Optimismo en las decisiones.</strong> Los hiperparámetros, el valor de <em>k</em> en la selección de rasgos y el umbral se escogieron con la misma validación cruzada, sin validación anidada.</li>
+    <li><strong>Datos de una sola mina.</strong> Los turnos provienen de dos tajos de una mina de Polonia; el modelo no puede trasladarse a otra mina sin datos propios. Además, las filas no traen fecha, por lo que la partición es aleatoria y no respeta el orden temporal de los turnos.</li>
+    <li><strong>Alcance del modelo.</strong> Predice el riesgo de un evento de alta energía en el turno siguiente, no un derrumbe ni su ubicación.</li>
+    <li><strong>Rasgo descartado.</strong> <code>shift</code>, que mostró una diferencia grande de riesgo en el análisis exploratorio (9,20 % frente a 1,85 %), no quedó entre los rasgos.</li>
+  </ul>
+  <h3>9.3 Trabajo futuro</h3>
+  <ul>
+    <li>Validación cruzada anidada y una partición que respete el orden temporal de los turnos, si se consiguen datos con fecha.</li>
+    <li>Rasgos construidos a partir de la historia de varios turnos (tendencias de energía y pulsos).</li>
+    <li>Costos asimétricos, que penalicen más una alerta perdida que una falsa alarma, y selección del umbral a partir de esos costos.</li>
+    <li>Modelos de árboles con probabilidades calibradas, que puedan aprovechar interacciones entre variables, y la revisión de rasgos descartados como <code>shift</code>.</li>
+    <li>Datos de otras minas y despliegue permanente de la aplicación.</li>
+  </ul>
+</section>
+
+<!-- 10 -->
+<section>
+  <h2>10. Referencias</h2>
+  <p class="cita">Abid, A., Abdalla, A., Abid, A., Khan, D., Alfozan, A. y Zou, J. (2019). Gradio: Hassle-free sharing and testing of ML models in the wild. <em>arXiv:1906.02569</em>.</p>
+  <p class="cita">Baak, M., Koopman, R., Snoek, H. y Klous, S. (2020). A new correlation coefficient between categorical, ordinal and interval variables with Pearson characteristics. <em>Computational Statistics &amp; Data Analysis, 152</em>, 107043.</p>
+  <p class="cita">Chawla, N. V., Bowyer, K. W., Hall, L. O. y Kegelmeyer, W. P. (2002). SMOTE: Synthetic Minority Over-sampling Technique. <em>Journal of Artificial Intelligence Research, 16</em>, 321–357.</p>
+  <p class="cita">Lemaître, G., Nogueira, F. y Aridas, C. K. (2017). Imbalanced-learn: A Python toolbox to tackle the curse of imbalanced datasets in machine learning. <em>Journal of Machine Learning Research, 18</em>(17), 1–5.</p>
+  <p class="cita">Lundberg, S. M. y Lee, S.-I. (2017). A unified approach to interpreting model predictions. <em>Advances in Neural Information Processing Systems, 30</em>.</p>
+  <p class="cita">Pedregosa, F. et al. (2011). Scikit-learn: Machine learning in Python. <em>Journal of Machine Learning Research, 12</em>, 2825–2830.</p>
+  <p class="cita">Platt, J. (1999). Probabilistic outputs for support vector machines and comparisons to regularized likelihood methods. En A. J. Smola et al. (Eds.), <em>Advances in Large Margin Classifiers</em>. MIT Press.</p>
+  <p class="cita">Sikora, M. y Wróbel, Ł. (2010). <em>seismic-bumps</em> [Conjunto de datos]. UCI Machine Learning Repository. https://doi.org/10.24432/C5W902</p>
+  <p class="cita">Sikora, M. y Wróbel, Ł. (2010). Application of rule induction algorithms for analysis of data collected by seismic hazard monitoring systems in coal mines. <em>Archives of Mining Sciences, 55</em>(1), 91–114.</p>
+
+  <h2 style="margin-top:22pt">Anexo. Reproducibilidad y estructura del repositorio</h2>
+  <p>El entorno se gestiona con uv (<code>pyproject.toml</code> y <code>uv.lock</code>, Python 3.11) y los cuadernos también corren en Google Colab. Para reproducir los resultados basta con clonar el repositorio, ejecutar <code>uv sync</code> y correr los cuatro cuadernos en orden; cada uno lee lo que dejó el anterior.</p>
+  <table style="table-layout:fixed">
+    <caption>Tabla A1. Cuadernos, qué hacen y qué archivos generan.</caption>
+    <colgroup><col style="width:34%"><col style="width:30%"><col style="width:36%"></colgroup>
+    <thead><tr><th>Archivo</th><th>Responsabilidad</th><th>Genera</th></tr></thead>
+    <tbody>
+      <tr><td><code>01_EDA_Limpieza.ipynb</code></td><td>Carga, exploración, limpieza, partición y codificación</td><td><code>train.csv</code>, <code>test.csv</code>, <code>test_original.csv</code>, <code>mapeos_categoricas.joblib</code></td></tr>
+      <tr><td><code>02_Escalado_PCA_Seleccion.ipynb</code></td><td>Escalador, PCA y selección de rasgos</td><td><code>decisiones_preprocesamiento.joblib</code>, <code>comparacion_rasgos.csv</code></td></tr>
+      <tr><td><code>03_Balanceo_Comparacion_Modelos.ipynb</code></td><td>41 combinaciones de modelo y balanceo</td><td><code>comparacion_modelos.csv</code></td></tr>
+      <tr><td><code>04_Ajuste_Evaluacion_Exportacion.ipynb</code></td><td>Ajuste, calibración, umbral, prueba y exportación</td><td><code>modelo_final.joblib</code>, <code>metadata_modelo.json</code>, <code>ajuste_hiperparametros.csv</code></td></tr>
+      <tr><td><code>app.py</code></td><td>Aplicación Gradio</td><td>—</td></tr>
+    </tbody>
+  </table>
+  <p>Las reglas del proyecto (estilo de código, partición, ausencia de fuga de información, comentarios en español) están en <code>AGENTS.md</code>; el avance, las decisiones y la bitácora, en <code>ESTADO.md</code>; el plan detallado, en <code>PLAN.md</code>. Las decisiones que se apartaron del plan original (cambio de la regla de selección de rasgos, grilla de umbrales más fina, ajuste por precisión promedio y calibración de probabilidades) quedaron registradas en <code>ESTADO.md</code> con su motivo.</p>
+</section>
+
+</body>
+</html>

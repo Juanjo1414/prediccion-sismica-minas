@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Predicción de peligro sísmico en minas de carbón</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#EEF0EE; --paper2:#E1E6E3; --paper3:#CBD3CF;
+  --coal:#12171E; --coal2:#1C2430; --slate:#3A4757; --mute:#667282;
+  --amber:#F2A900; --amberd:#9A6A00; --blue:#2E7A9B; --danger:#C4432B; --ok:#2F8F6B;
+  --titulo:'Barlow Condensed','Arial Narrow','Roboto Condensed',sans-serif;
+  --texto:'Barlow','Segoe UI',Arial,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;background:#0b0f14;overflow:hidden;font-family:var(--texto);color:var(--coal);-webkit-font-smoothing:antialiased}
+#stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:center center;transform:translate(-50%,-50%);background:var(--paper);overflow:hidden}
+.slide{position:absolute;inset:0;padding:96px 120px 110px;opacity:0;visibility:hidden;transform:translateX(28px);transition:opacity .55s ease,transform .55s ease,visibility 0s .55s;background:var(--paper)}
+.slide.active{opacity:1;visibility:visible;transform:none;transition:opacity .55s ease,transform .55s ease,visibility 0s}
+.slide.dark{background:var(--coal);color:#E9EDF0}
+h1,h2,h3{font-family:var(--titulo);font-weight:700;letter-spacing:-.01em;line-height:.98}
+h1{font-size:150px}
+h2{font-size:92px;max-width:1500px}
+h3{font-size:44px;font-weight:600;line-height:1.05}
+p,li{font-size:31px;line-height:1.38;max-width:62ch}
+.lead{font-size:38px;line-height:1.3;color:var(--slate);max-width:44ch}
+.dark .lead{color:#B8C2CC}
+.mut{color:var(--mute)}
+.num{font-family:var(--titulo);font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+.am{color:var(--amber)} .bl{color:var(--blue)} .rd{color:var(--danger)} .gr{color:var(--ok)}
+.row{display:flex;gap:64px;align-items:flex-start}
+.col{display:flex;flex-direction:column}
+.grow{flex:1}
+.tag{display:inline-block;font-size:24px;font-weight:600;padding:6px 16px;border-radius:6px;background:var(--paper2);color:var(--slate)}
+.tag.amber{background:var(--amber);color:var(--coal)}
+.btn{font-family:var(--texto);font-size:26px;font-weight:600;border:2px solid var(--coal);background:transparent;color:var(--coal);padding:12px 26px;border-radius:8px;cursor:pointer;transition:background .2s,color .2s,transform .15s}
+.btn:hover{background:var(--coal);color:var(--paper)}
+.btn:active{transform:scale(.97)}
+.btn.sel{background:var(--coal);color:var(--paper)}
+.dark .btn{border-color:#E9EDF0;color:#E9EDF0}.dark .btn:hover{background:#E9EDF0;color:var(--coal)}
+.btn.primary{background:var(--amber);border-color:var(--amber);color:var(--coal)}
+.btn.primary:hover{background:#ffc233;border-color:#ffc233;color:var(--coal)}
+button:focus-visible,input:focus-visible{outline:4px solid var(--blue);outline-offset:3px}
+.frag{opacity:0;transform:translateY(16px);transition:opacity .5s ease,transform .5s ease}
+.frag.show{opacity:1;transform:none}
+svg text{font-family:var(--texto)}
+.cap{font-size:24px;color:var(--mute);margin-top:14px;max-width:70ch;line-height:1.3}
+.dark .cap{color:#8896A5}
+
+/* HUD */
+#progress{position:fixed;left:0;top:0;height:6px;background:var(--amber);width:0;transition:width .4s ease;z-index:30}
+#hud{position:fixed;left:0;right:0;bottom:0;display:flex;justify-content:space-between;align-items:center;padding:10px 18px;z-index:30;font-size:15px;color:#9aa6b2;pointer-events:none;font-family:var(--texto)}
+#hud .nav{pointer-events:auto;display:flex;gap:8px;align-items:center}
+#hud button{background:rgba(18,23,30,.82);color:#E9EDF0;border:1px solid #3a4757;border-radius:6px;font-size:15px;padding:6px 12px;cursor:pointer;font-family:var(--texto)}
+#hud button:hover{background:var(--amber);color:var(--coal);border-color:var(--amber)}
+#hud .pos{background:rgba(18,23,30,.82);padding:6px 12px;border-radius:6px;color:#E9EDF0;min-width:64px;text-align:center}
+#timer{position:fixed;right:18px;top:16px;z-index:30;background:rgba(18,23,30,.85);color:#E9EDF0;border-radius:6px;padding:6px 12px;font-size:16px;display:none;font-variant-numeric:tabular-nums}
+#hint{position:fixed;left:50%;bottom:58px;transform:translateX(-50%);z-index:30;background:rgba(18,23,30,.9);color:#E9EDF0;border-radius:8px;padding:10px 18px;font-size:16px;transition:opacity .6s;font-family:var(--texto)}
+#notes{position:fixed;left:0;right:0;bottom:0;max-height:34vh;overflow:auto;background:rgba(18,23,30,.96);color:#E9EDF0;padding:18px 28px 56px;z-index:25;font-size:19px;line-height:1.45;display:none;border-top:4px solid var(--amber);font-family:var(--texto)}
+#notes b{color:var(--amber)}
+#overview{position:fixed;inset:0;background:rgba(11,15,20,.97);z-index:40;display:none;padding:40px;overflow:auto}
+#overview .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+#overview .card{background:var(--paper);color:var(--coal);border-radius:8px;padding:16px;cursor:pointer;min-height:110px;font-family:var(--titulo);font-size:26px;font-weight:600;line-height:1.05;border:3px solid transparent}
+#overview .card small{display:block;font-family:var(--texto);font-weight:500;font-size:14px;color:var(--mute);margin-bottom:8px}
+#overview .card:hover,#overview .card.cur{border-color:var(--amber)}
+#tip{position:fixed;pointer-events:none;background:var(--coal);color:#fff;padding:10px 14px;border-radius:6px;z-index:50;display:none;line-height:1.35;font-family:var(--texto);box-shadow:0 6px 24px rgba(0,0,0,.35)}
+
+/* Portada */
+#s1 canvas{position:absolute;left:0;top:140px;width:1920px;height:520px}
+#s1 .t{position:absolute;left:120px;bottom:110px;max-width:1500px}
+#s1 .eq{position:absolute;left:120px;top:90px;font-size:30px;color:#8896A5}
+#s1 .team{position:absolute;right:120px;bottom:118px;text-align:right;font-size:26px;line-height:1.5;color:#B8C2CC}
+
+/* Slide 2 */
+.shift{border:3px solid var(--coal);border-radius:14px;padding:30px 34px;width:560px;min-height:330px;background:var(--paper)}
+.shift.next{border-style:dashed;border-color:var(--mute);background:transparent}
+.chip{display:inline-block;background:var(--coal);color:#fff;border-radius:6px;font-size:25px;padding:6px 14px;margin:4px 6px 4px 0}
+.arrow{font-family:var(--titulo);font-size:90px;color:var(--amber);align-self:center;line-height:1}
+
+/* Slide 3 */
+.grupo{border:2px solid var(--paper3);border-radius:12px;padding:16px 22px;cursor:pointer;background:#F7F8F7;transition:border-color .2s,background .2s;text-align:left;font-family:var(--texto);width:100%}
+.grupo:hover{border-color:var(--slate)}
+.grupo.sel{border-color:var(--coal);background:#fff;box-shadow:6px 6px 0 var(--amber)}
+.grupo b{font-family:var(--titulo);font-size:36px;font-weight:600;display:block;line-height:1.05}
+.grupo span{font-size:23px;color:var(--mute)}
+#detalle{background:var(--coal);color:#E9EDF0;border-radius:14px;padding:34px 40px;min-height:430px;width:690px}
+#detalle p{font-size:28px}
+.vchip{display:inline-block;border:2px solid #4c5a6b;border-radius:6px;font-size:25px;padding:3px 12px;margin:4px 6px 4px 0;font-family:var(--texto)}
+.vchip.use{background:var(--amber);color:var(--coal);border-color:var(--amber);font-weight:600}
+
+/* dots */
+#dots{display:grid;grid-template-columns:repeat(10,1fr);gap:14px;width:620px}
+#dots i{display:block;aspect-ratio:1;border-radius:50%;background:var(--paper3);transition:background .35s,transform .35s}
+#dots i.p{background:var(--amber);transform:scale(1.08)}
+#dots i.ok{background:var(--ok)}
+#dots i.mis{background:var(--danger)}
+
+.bar{height:34px;background:var(--paper2);border-radius:5px;position:relative;overflow:hidden}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:var(--blue);width:0;transition:width 1.1s cubic-bezier(.2,.8,.2,1)}
+.bar.am i{background:var(--amber)}
+.barlab{display:flex;justify-content:space-between;font-size:27px;margin:12px 0 5px}
+.compacto .barlab{font-size:25px;margin:8px 0 3px}.compacto .bar{height:26px}
+.barlab b{font-variant-numeric:tabular-nums}
+
+/* flow */
+.flow{display:flex;gap:18px;align-items:stretch}
+.step{flex:1;border:3px solid var(--paper3);border-radius:12px;padding:20px 22px;background:#F7F8F7;opacity:.35;transition:opacity .5s,border-color .5s,transform .5s}
+.step.on{opacity:1;border-color:var(--coal);transform:translateY(-6px)}
+.step h3{font-size:36px;margin-bottom:8px}
+.step p{font-size:24px;line-height:1.3}
+
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:10px;border-radius:5px;background:var(--paper3);outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:34px;height:34px;border-radius:50%;background:var(--coal);border:5px solid var(--amber);cursor:pointer}
+input[type=range]::-moz-range-thumb{width:26px;height:26px;border-radius:50%;background:var(--coal);border:5px solid var(--amber);cursor:pointer}
+.sl{margin:16px 0}
+.sl .l{display:flex;justify-content:space-between;font-size:27px;margin-bottom:10px}
+.sl .l b{font-variant-numeric:tabular-nums}
+.sl .l small{font-size:21px;color:var(--mute);display:block}
+
+.col3{display:grid;grid-template-columns:repeat(3,1fr);gap:48px}
+.col3 h3{border-top:6px solid var(--coal);padding-top:16px;margin-bottom:14px}
+.col3 li{font-size:32px;margin:0 0 16px 26px;line-height:1.3}
+
+@media (prefers-reduced-motion:reduce){
+  .slide,.slide.active,.frag,.bar i,.step,#dots i{transition:none!important}
+}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<div id="timer" title="Tiempo transcurrido (T para ocultar)">00:00</div>
+<div id="hint">← → avanzar · O vista general · N notas · T cronómetro · F pantalla completa</div>
+<div id="tip"></div>
+<div id="notes" role="region" aria-label="Notas del orador"></div>
+<div id="overview" role="dialog" aria-label="Vista general"><div class="grid" id="ovgrid"></div></div>
+<div id="hud">
+  <span>Peligro sísmico en minas de carbón · Fundamentos de IA · Universidad EIA</span>
+  <div class="nav">
+    <button id="bOv" aria-label="Vista general">Vista general</button>
+    <button id="bNotes" aria-label="Notas">Notas</button>
+    <button id="bPrev" aria-label="Anterior">←</button>
+    <span class="pos" id="pos">1 / 14</span>
+    <button id="bNext" aria-label="Siguiente">→</button>
+    <button id="bFull" aria-label="Pantalla completa">Pantalla completa</button>
+  </div>
+</div>
+
+<div id="stage">
+
+<!-- 1 PORTADA -->
+<section class="slide dark" id="s1" data-title="Portada">
+  <canvas id="sismo" width="1920" height="520"></canvas>
+  <div class="eq">Fundamentos de Inteligencia Artificial · Universidad EIA · 2026-2</div>
+  <div class="t">
+    <h1>Anticipar el peligro<br>sísmico en minas de carbón</h1>
+    <p class="lead" style="margin-top:28px">¿Habrá un evento de alta energía en el próximo turno? Un clasificador con datos reales de monitoreo.</p>
+  </div>
+  <div class="team">Juan Jose Jaramillo Mora · Sebastian Giraldo Franco<br>Martin Restrepo · Miguel Angel Zuleta<br>Julian Mora · Santiago Zuluaga</div>
+</section>
+
+<!-- 2 PROBLEMA -->
+<section class="slide" id="s2" data-title="Una pregunta por turno">
+  <h2>Cada turno de 8 horas deja una pregunta abierta</h2>
+  <div class="row" style="margin-top:70px;align-items:stretch">
+    <div class="shift frag">
+      <h3>Turno anterior</h3>
+      <p style="margin:10px 0 16px">Los geófonos de la mina registran la actividad de la roca.</p>
+      <span class="chip">pulsos</span><span class="chip">energía</span><span class="chip">golpes sísmicos</span><span class="chip">evaluaciones de peligro</span>
+    </div>
+    <div class="arrow frag">→</div>
+    <div class="shift next frag">
+      <h3>Turno siguiente</h3>
+      <p style="margin:10px 0 16px">¿Habrá un evento sísmico de más de <b>10⁴ julios</b>?</p>
+      <p class="mut" style="font-size:26px">Una sacudida de esa energía puede provocar derrumbes en el frente de trabajo.</p>
+    </div>
+    <div class="col frag" style="justify-content:center;gap:18px;padding-left:20px">
+      <span class="tag amber" style="font-size:30px;align-self:flex-start">class = 1 · turno peligroso</span>
+      <span class="tag" style="font-size:30px;align-self:flex-start">class = 0 · sin peligro</span>
+      <p class="mut" style="font-size:26px;max-width:26ch">Clasificación binaria con datos de una mina real.</p>
+    </div>
+  </div>
+  <p class="lead frag" style="margin-top:64px">Si pudiéramos avisar con un turno de anticipación, el personal tendría tiempo de reaccionar.</p>
+</section>
+
+<!-- 3 DATOS -->
+<section class="slide" id="s3" data-title="Los datos">
+  <h2>seismic-bumps: dos tajos largos de una mina en Polonia</h2>
+  <div class="row" style="margin-top:56px;gap:80px">
+    <div style="width:560px">
+      <div class="col" style="gap:30px">
+        <div><span class="num" id="n1" style="font-size:150px;line-height:.9">0</span><p class="mut" style="font-size:28px">turnos de 8 horas</p></div>
+        <div><span class="num" id="n2" style="font-size:150px;line-height:.9">0</span><p class="mut" style="font-size:28px">variables de entrada, más la clase</p></div>
+        <div><span class="num" id="n3" style="font-size:150px;line-height:.9;color:var(--amberd)">0</span><p class="mut" style="font-size:28px">turnos peligrosos</p></div>
+      </div>
+      <p class="cap">Fuente: UCI Machine Learning Repository (id 266), Sikora y Wróbel (2010).</p>
+    </div>
+    <div style="width:560px" class="col" id="grupos" role="tablist" aria-label="Grupos de variables"></div>
+    <div id="detalle" aria-live="polite"></div>
+  </div>
+</section>
+
+<!-- 4 RETO -->
+<section class="slide" id="s4" data-title="El reto: pocos turnos peligrosos">
+  <h2>Solo 7 de cada 100 turnos son peligrosos</h2>
+  <div class="row" style="margin-top:56px;gap:100px">
+    <div>
+      <div id="dots"></div>
+      <p class="cap">Cada punto es un turno. En ámbar, los peligrosos (6,6%).</p>
+    </div>
+    <div class="col" style="gap:26px;width:900px">
+      <p class="lead">Un modelo que responda siempre «sin peligro» acierta casi todas las veces… y no sirve para nada.</p>
+      <div class="row" style="gap:70px;align-items:flex-end">
+        <div><span class="num" id="acc0" style="font-size:150px;line-height:.9">93,4%</span><p class="mut" style="font-size:27px">accuracy de «siempre sin peligro»</p></div>
+        <div><span class="num rd" id="det0" style="font-size:150px;line-height:.9">0</span><p class="mut" style="font-size:27px">de 170 turnos peligrosos detectados</p></div>
+      </div>
+      <div class="row" style="gap:16px;margin-top:6px">
+        <button class="btn" id="bSiempre">Probar el modelo que nunca avisa</button>
+        <button class="btn" id="bReset">Reiniciar</button>
+      </div>
+      <p style="font-size:30px"><b>Por eso la métrica principal es el F1 de la clase peligrosa</b>: premia detectar los turnos de riesgo sin llenar todo de falsas alarmas. El accuracy solo es referencia.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 5 EDA -->
+<section class="slide" id="s5" data-title="Lo que vimos en los datos">
+  <h2>Qué distingue a un turno peligroso</h2>
+  <div class="row" style="margin-top:50px;gap:90px">
+    <div style="width:840px">
+      <h3 style="margin-bottom:12px">Porcentaje de turnos peligrosos</h3>
+      <div id="eda1" class="compacto"></div>
+      <p class="cap">Promedio general: 6,6%. Los turnos de extracción (W) son 5 veces más peligrosos que los de preparación (N).</p>
+    </div>
+    <div style="width:760px">
+      <h3 style="margin-bottom:12px">Relación con la clase (phik)</h3>
+      <div id="eda2" class="compacto"></div>
+      <p class="cap">Ninguna supera 0,35, y gdpuls, gdenergy, seismoacoustic y ghazard casi no se relacionan: no hay una pista simple.</p>
+    </div>
+  </div>
+  <p class="frag" style="margin-top:34px;font-size:29px"><b>Limpieza:</b> 6 duplicados fuera, 3 columnas constantes fuera (<span class="mut">nbumps6, nbumps7, nbumps89</span>). Los valores extremos <b>se conservan</b>: son los eventos reales que queremos detectar.</p>
+</section>
+
+<!-- 6 PREPARACION -->
+<section class="slide" id="s6" data-title="Preparación y selección de rasgos">
+  <h2>De 15 variables a 5 rasgos, sin mirar el test</h2>
+  <div class="flow" id="flow" style="margin-top:46px">
+    <div class="step"><h3>Partición</h3><p>80/20 estratificada, una sola vez. Test queda guardado.</p></div>
+    <div class="step"><h3>Escalado</h3><p>MinMax gana por poco: F1 0,266 frente a 0,258 y 0,238.</p></div>
+    <div class="step"><h3>PCA</h3><p>5 componentes dan 90% de la varianza, pero el F1 no mejora. Se descarta.</p></div>
+    <div class="step"><h3>Selección</h3><p>6 métodos, siempre dentro del pipeline. Eligen entre 1 y 8 rasgos.</p></div>
+  </div>
+  <div class="row" style="margin-top:50px;gap:80px">
+    <div style="width:980px">
+      <h3 style="margin-bottom:6px">F1 por método de selección (promedio ± desviación)</h3>
+      <svg id="svgMet" width="980" height="360" viewBox="0 0 980 360"></svg>
+      <p class="cap">Todos caen dentro del ruido de la validación cruzada: ningún método es claramente mejor.</p>
+    </div>
+    <div class="col" style="gap:18px">
+      <h3>Rasgos elegidos</h3>
+      <div><span class="vchip use">gpuls</span><span class="vchip use">nbumps</span><span class="vchip use">nbumps2</span><span class="vchip use">nbumps3</span><span class="vchip use">energy</span></div>
+      <p style="font-size:27px">Información mutua, 5 rasgos. La regla del plan dejaba solo <b>nbumps</b>; pedimos al menos 3 para que la comparación y la app tuvieran sentido.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 7 HEATMAP -->
+<section class="slide" id="s7" data-title="41 combinaciones de modelo y balanceo">
+  <h2>Balancear pesa más que elegir modelo</h2>
+  <div class="row" style="margin-top:30px;gap:60px">
+    <div>
+      <div class="row" style="gap:10px;margin-bottom:6px" id="metBtns"></div>
+      <svg id="svgHeat" width="1130" height="640" viewBox="0 0 1130 640"></svg>
+    </div>
+    <div class="col" style="gap:20px;width:520px">
+      <p style="font-size:30px"><b>12 modelos × 4 estrategias = 41 combinaciones</b> (class_weight solo existe en 5 modelos).</p>
+      <div><p class="mut" style="font-size:25px">F1 promedio sin balanceo</p><span class="num" id="f1sin" style="font-size:96px;line-height:1">0</span></div>
+      <div><p class="mut" style="font-size:25px">F1 promedio con submuestreo</p><span class="num am" id="f1sub" style="font-size:96px;line-height:1;color:var(--amberd)">0</span></div>
+      <p style="font-size:27px">Los lineales y la red neuronal pasan de F1 casi 0 a unos 0,27–0,30. Los árboles y KNN ganan poco.</p>
+      <p style="font-size:27px">Los cinco primeros están a menos de 0,02 de F1 entre sí: <b>no se pueden distinguir</b> con estos datos.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 8 TRAMPA -->
+<section class="slide" id="s8" data-title="La trampa del accuracy">
+  <h2>El accuracy premia justo a los modelos que no detectan nada</h2>
+  <div class="row" style="margin-top:36px;gap:60px">
+    <div>
+      <svg id="svgScat" width="1130" height="690" viewBox="0 0 1130 690"></svg>
+    </div>
+    <div class="col" style="gap:22px;width:560px">
+      <div id="leg"></div>
+      <p style="font-size:28px">Cada punto es una de las 41 combinaciones. Las que tienen el accuracy más alto (hasta 0,934) tienen F1 igual a 0.</p>
+      <p style="font-size:28px">Las mejores por F1 tienen un accuracy de 0,79 a 0,82, <b>por debajo de la línea</b> de «siempre sin peligro»… y sí detectan turnos peligrosos.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 9 CALIBRACION -->
+<section class="slide" id="s9" data-title="Un modelo útil, no solo un F1">
+  <h2>Un F1 decente no es suficiente</h2>
+  <div class="row" style="margin-top:44px;gap:80px">
+    <div style="width:900px" class="col">
+      <p class="lead" style="font-size:33px;max-width:36ch">Las probabilidades también tienen que servir. Nuestra primera versión ganaba en F1, pero daba casi lo mismo a todos los turnos. La descartamos.</p>
+      <div style="margin-top:36px">
+        <div class="barlab"><span>Primera versión (sin calibrar)</span><b>0,49 a 0,56</b></div>
+        <div class="bar" style="height:44px"><i id="rg1" style="background:var(--danger)"></i></div>
+        <div class="barlab" style="margin-top:26px"><span>Versión final (calibrada)</span><b id="rg2t">0,03 a 0,89</b></div>
+        <div class="bar am" style="height:44px"><i id="rg2"></i></div>
+        <p class="cap">Escala de 0 a 1. La mediana calibrada es 0,04, muy cerca del 6,6% real de turnos peligrosos.</p>
+      </div>
+      <p style="font-size:29px;margin-top:20px">Ajustamos hiperparámetros con precisión promedio (sin depender del umbral) y calibramos con una curva sigmoide. <b>El F1 en test casi no cambió (0,296 → 0,299)</b>; lo que ganamos es un riesgo que se puede leer como porcentaje.</p>
+    </div>
+    <div>
+      <h3 style="margin-bottom:10px">¿El riesgo predicho es el riesgo real?</h3>
+      <svg id="svgCal" width="760" height="680" viewBox="0 0 760 680"></svg>
+      <p class="cap">Validación cruzada, 10 grupos de turnos. Cerca de la diagonal = bien calibrado.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 10 UMBRAL -->
+<section class="slide" id="s10" data-title="El umbral de decisión">
+  <h2>¿Desde qué riesgo damos la alerta?</h2>
+  <div class="row" style="margin-top:34px;gap:70px">
+    <div>
+      <svg id="svgThr" width="1080" height="560" viewBox="0 0 1080 560"></svg>
+      <div class="sl" style="margin:18px 20px 0 70px">
+        <div class="l"><span>Umbral de decisión</span><b id="uVal">10%</b></div>
+        <input type="range" id="uSl" min="1" max="60" step="1" value="10" aria-label="Umbral de decisión en porcentaje">
+      </div>
+    </div>
+    <div class="col" style="gap:18px;width:600px">
+      <div class="row" style="gap:28px">
+        <div><span class="num am" id="vF1" style="font-size:90px;color:var(--amberd)">0</span><p class="mut" style="font-size:24px">F1</p></div>
+        <div><span class="num bl" id="vRec" style="font-size:90px">0</span><p class="mut" style="font-size:24px">recall</p></div>
+        <div><span class="num" id="vPre" style="font-size:90px;color:var(--slate)">0</span><p class="mut" style="font-size:24px">precisión</p></div>
+      </div>
+      <p id="uTxt" style="font-size:30px;min-height:130px"></p>
+      <button class="btn primary" id="uElegido" style="align-self:flex-start">Volver al umbral elegido (10%)</button>
+      <p class="cap" style="margin-top:0">Curvas con las probabilidades calibradas de validación cruzada sobre train. El test no se usó para elegir el umbral.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 11 TEST -->
+<section class="slide" id="s11" data-title="Resultado en test">
+  <h2>En test: 16 de 34 turnos peligrosos detectados</h2>
+  <div class="row" style="margin-top:46px;gap:100px">
+    <div>
+      <svg id="svgCm" width="760" height="620" viewBox="0 0 760 620"></svg>
+      <p class="cap">516 turnos de test, umbral 10%.</p>
+    </div>
+    <div style="width:860px">
+      <h3 style="margin-bottom:8px">Validación cruzada frente a test</h3>
+      <svg id="svgCmp" width="860" height="330" viewBox="0 0 860 330"></svg>
+      <p style="font-size:28px;margin-top:16px">Test queda un poco más abajo: lo esperable con solo 34 positivos, donde <b>un turno mueve el recall casi 3 puntos</b>.</p>
+      <p style="font-size:28px;margin-top:12px">«Siempre sin peligro» saca 93,4% de accuracy y detecta 0. Nuestro modelo: 85,5% de accuracy, 47% de recall, 57 falsas alarmas.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 12 DEMO -->
+<section class="slide dark" id="s12" data-title="Demo: simulador del modelo">
+  <h2>Prueba el modelo con un turno</h2>
+  <div class="row" style="margin-top:40px;gap:90px">
+    <div style="width:880px" id="sims"></div>
+    <div class="col" style="align-items:center;gap:6px;width:760px">
+      <svg id="svgGauge" width="700" height="400" viewBox="0 0 700 400"></svg>
+      <div id="veredicto" style="font-family:var(--titulo);font-size:64px;font-weight:700;line-height:1;margin-top:-6px">…</div>
+      <p id="vTexto" style="font-size:26px;text-align:center;color:#B8C2CC;max-width:34ch;min-height:70px"></p>
+      <div class="row" style="gap:12px;flex-wrap:wrap;justify-content:center">
+        <button class="btn" data-pre="0">Turno tranquilo</button>
+        <button class="btn" data-pre="1">Actividad moderada</button>
+        <button class="btn" data-pre="2">Turno intenso</button>
+        <button class="btn primary" id="bReal">Turno real al azar</button>
+      </div>
+      <p id="realTxt" style="font-size:26px;min-height:40px;margin-top:8px;color:#E9EDF0"></p>
+    </div>
+  </div>
+  <p class="cap" style="position:absolute;left:120px;bottom:100px">Es el mismo modelo calibrado de la app Gradio (5 clasificadores entrenados en validación cruzada), recalculado aquí con sus coeficientes.</p>
+</section>
+
+<!-- 13 CONCLUSIONES -->
+<section class="slide" id="s13" data-title="Conclusiones y límites">
+  <h2>Qué logramos, qué no, y qué sigue</h2>
+  <div class="col3" style="margin-top:56px">
+    <div class="frag">
+      <h3>Lo que logramos</h3>
+      <ul>
+        <li>Un flujo reproducible: 4 notebooks, una app y reglas anti-filtración (balanceo y escalado dentro del pipeline).</li>
+        <li>Un modelo que detecta cerca de la mitad de los turnos peligrosos con probabilidades calibradas.</li>
+        <li>Una comparación honesta de 41 combinaciones.</li>
+      </ul>
+    </div>
+    <div class="frag">
+      <h3>Lo que no logramos</h3>
+      <ul>
+        <li>F1 de 0,30 en test: es alerta temprana, no certeza.</li>
+        <li>Ni el grupo de mayor riesgo pasa de 1 alerta cierta de cada 4.</li>
+        <li>Solo 34 positivos en test; las diferencias entre los mejores modelos son ruido.</li>
+        <li>El test ya se había visto una vez (primera versión): lo decimos en el informe.</li>
+      </ul>
+    </div>
+    <div class="frag">
+      <h3>Con más tiempo</h3>
+      <ul>
+        <li>Validación cruzada anidada y partición respetando el orden temporal.</li>
+        <li>Historia de varios turnos como rasgos (tendencias).</li>
+        <li>Costos asimétricos: una alerta perdida pesa más que una falsa alarma.</li>
+        <li>Datos de otras minas.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 14 CIERRE -->
+<section class="slide dark" id="s14" data-title="Gracias">
+  <svg id="svgFin" width="1920" height="260" viewBox="0 0 1920 260" style="position:absolute;left:0;top:120px"></svg>
+  <div class="t" style="position:absolute;left:120px;top:430px">
+    <h1 style="font-size:140px">Gracias</h1>
+    <p class="lead" style="margin-top:24px">Preguntas, y si quieren, probamos el simulador con sus propios turnos.</p>
+  </div>
+  <div style="position:absolute;left:120px;bottom:110px;font-size:23px;line-height:1.5;color:#8896A5;max-width:1020px">
+    Sikora, M. y Wróbel, Ł. (2010). seismic-bumps. UCI Machine Learning Repository. doi:10.24432/C5W902 · Sikora y Wróbel (2010), Archives of Mining Sciences, 55(1), 91–114.<br>
+    Código, notebooks, app e informe en el repositorio: github.com/Juanjo1414/prediccion-sismica-minas
+  </div>
+  <div style="position:absolute;right:120px;bottom:118px;text-align:right;font-size:26px;line-height:1.5;color:#B8C2CC">Juan Jose Jaramillo Mora<br>Sebastian Giraldo Franco · Martin Restrepo<br>Miguel Angel Zuleta · Julian Mora<br>Santiago Zuluaga</div>
+</section>
+
+</div><!-- /stage -->
+
+<script>
+window.DATOS = {"meta":{"modelo":"SVM lineal","estrategia_balanceo":"Submuestreo","calibracion":"sigmoide (CalibratedClassifierCV, 5 particiones)","escalador":"MinMaxScaler","rasgos":["gpuls","nbumps","nbumps2","nbumps3","energy"],"umbral":0.1,"hiperparametros":{"clf__C":"0.1"},"metricas_cv":{"F1":0.3333333333333333,"Recall":0.5367647058823529,"Precision":0.24172185430463577,"ROC_AUC":0.7770390477063099,"Accuracy":0.8583899127061105,"Precision_promedio":0.2064389436940618,"Brier":0.05792267528943036},"metricas_test":{"F1":0.29906542056074764,"Recall":0.47058823529411764,"Precision":0.2191780821917808,"ROC_AUC":0.7443861361972175,"Accuracy":0.8546511627906976,"Precision_promedio":0.19169725303485693,"Brier":0.059477455148986405},"fecha_entrenamiento":"2026-10-06T13:05:21","version_sklearn":"1.9.1"},"rasgos":["gpuls","nbumps","nbumps2","nbumps3","energy"],"rangos":{"gpuls":{"min":2.0,"max":4518.0,"mediana":383.5},"nbumps":{"min":0.0,"max":9.0,"mediana":0.0},"nbumps2":{"min":0.0,"max":8.0,"mediana":0.0},"nbumps3":{"min":0.0,"max":7.0,"mediana":0.0},"energy":{"min":0.0,"max":402000.0,"mediana":0.0}},"clasificadores":[{"min_":[-0.0004428697962798937,0.0,0.0,0.0,0.0],"scale_":[0.00022143489813994686,0.1111111111111111,0.125,0.14285714285714285,2.4875621890547264e-06],"coef":[1.072045936340358,0.5412939062025065,0.3491551509086155,0.3210936041289173,0.03671022841004569],"intercept":-0.3262221119613288,"a":-3.833985515933125,"b":2.4924070798959126},{"min_":[-0.000664451827242525,0.0,0.0,0.0,0.0],"scale_":[0.00022148394241417498,0.1111111111111111,0.2,0.14285714285714285,3.3333333333333333e-06],"coef":[0.7103676162058904,0.774911751264393,0.5852982044143301,0.4060814896833584,0.12623064530734435],"intercept":-0.35728838692261017,"a":-2.411607392389979,"b":2.5353803704350493},{"min_":[-0.0004428697962798937,0.0,0.0,0.0,0.0],"scale_":[0.00022143489813994686,0.1111111111111111,0.125,0.14285714285714285,2.4875621890547264e-06],"coef":[0.8662164817455076,0.8626157663826254,0.5991428148681779,0.32149370678445305,0.021554049342329983],"intercept":-0.3548154951040026,"a":-3.5201417656001732,"b":2.5899866199533523},{"min_":[-0.0004428697962798937,0.0,0.0,0.0,0.0],"scale_":[0.00022143489813994686,0.125,0.125,0.2,2.4875621890547264e-06],"coef":[0.9588438499596929,0.856385625431118,0.5001180766475584,0.4207109302677162,0.04474165020347938],"intercept":-0.38576129729565756,"a":-2.28128684602066,"b":2.7229367685145234},{"min_":[-0.00045840018336007336,0.0,0.0,0.0,0.0],"scale_":[0.00022920009168003668,0.1111111111111111,0.125,0.14285714285714285,2.4875621890547264e-06],"coef":[0.8439305845312489,0.9257864956802335,0.44217761784454634,0.6410307666687438,-0.016822015197564717],"intercept":-0.3780335393194062,"a":-2.196877437130975,"b":2.5909285061424616}],"umbrales":[{"u":0.01,"f1":0.12374886260236578,"recall":1.0,"precision":0.06595538312318137},{"u":0.02,"f1":0.12374886260236578,"recall":1.0,"precision":0.06595538312318137},{"u":0.03,"f1":0.14432989690721648,"recall":0.9779411764705882,"precision":0.07791446983011131},{"u":0.04,"f1":0.19080659150043366,"recall":0.8088235294117647,"precision":0.10816125860373647},{"u":0.05,"f1":0.22624434389140272,"recall":0.7352941176470589,"precision":0.13368983957219252},{"u":0.06,"f1":0.27246376811594203,"recall":0.6911764705882353,"precision":0.16967509025270758},{"u":0.07,"f1":0.29132569558101473,"recall":0.6544117647058824,"precision":0.18736842105263157},{"u":0.08,"f1":0.3068181818181818,"recall":0.5955882352941176,"precision":0.2066326530612245},{"u":0.09,"f1":0.326271186440678,"recall":0.5661764705882353,"precision":0.22916666666666666},{"u":0.1,"f1":0.3333333333333333,"recall":0.5367647058823529,"precision":0.24172185430463577},{"u":0.11,"f1":0.32923832923832924,"recall":0.49264705882352944,"precision":0.24723247232472326},{"u":0.12,"f1":0.30606860158311344,"recall":0.4264705882352941,"precision":0.23868312757201646},{"u":0.13,"f1":0.2824207492795389,"recall":0.3602941176470588,"precision":0.23222748815165878},{"u":0.14,"f1":0.26299694189602446,"recall":0.3161764705882353,"precision":0.225130890052356},{"u":0.15,"f1":0.2379421221864952,"recall":0.27205882352941174,"precision":0.21142857142857144},{"u":0.16,"f1":0.23208191126279865,"recall":0.25,"precision":0.21656050955414013},{"u":0.17,"f1":0.23655913978494625,"recall":0.2426470588235294,"precision":0.23076923076923078},{"u":0.18,"f1":0.24124513618677043,"recall":0.22794117647058823,"precision":0.256198347107438},{"u":0.19,"f1":0.22764227642276422,"recall":0.20588235294117646,"precision":0.2545454545454545},{"u":0.2,"f1":0.21666666666666667,"recall":0.19117647058823528,"precision":0.25},{"u":0.21,"f1":0.2127659574468085,"recall":0.18382352941176472,"precision":0.25252525252525254},{"u":0.22,"f1":0.19383259911894274,"recall":0.16176470588235295,"precision":0.24175824175824176},{"u":0.23,"f1":0.19383259911894274,"recall":0.16176470588235295,"precision":0.24175824175824176},{"u":0.24,"f1":0.19004524886877827,"recall":0.15441176470588236,"precision":0.24705882352941178},{"u":0.25,"f1":0.19534883720930232,"recall":0.15441176470588236,"precision":0.26582278481012656},{"u":0.26,"f1":0.1990521327014218,"recall":0.15441176470588236,"precision":0.28},{"u":0.27,"f1":0.2048780487804878,"recall":0.15441176470588236,"precision":0.30434782608695654},{"u":0.28,"f1":0.19,"recall":0.13970588235294118,"precision":0.296875},{"u":0.29,"f1":0.18556701030927836,"recall":0.1323529411764706,"precision":0.3103448275862069},{"u":0.3,"f1":0.16842105263157894,"recall":0.11764705882352941,"precision":0.2962962962962963},{"u":0.31,"f1":0.1702127659574468,"recall":0.11764705882352941,"precision":0.3076923076923077},{"u":0.32,"f1":0.16216216216216217,"recall":0.11029411764705882,"precision":0.30612244897959184},{"u":0.33,"f1":0.16393442622950818,"recall":0.11029411764705882,"precision":0.3191489361702128},{"u":0.34,"f1":0.15555555555555556,"recall":0.10294117647058823,"precision":0.3181818181818182},{"u":0.35,"f1":0.14772727272727273,"recall":0.09558823529411764,"precision":0.325},{"u":0.36,"f1":0.14942528735632185,"recall":0.09558823529411764,"precision":0.34210526315789475},{"u":0.37,"f1":0.1286549707602339,"recall":0.08088235294117647,"precision":0.3142857142857143},{"u":0.38,"f1":0.11904761904761904,"recall":0.07352941176470588,"precision":0.3125},{"u":0.39,"f1":0.11042944785276074,"recall":0.0661764705882353,"precision":0.3333333333333333},{"u":0.4,"f1":0.09876543209876543,"recall":0.058823529411764705,"precision":0.3076923076923077},{"u":0.41,"f1":0.1,"recall":0.058823529411764705,"precision":0.3333333333333333},{"u":0.42,"f1":0.07692307692307693,"recall":0.04411764705882353,"precision":0.3},{"u":0.43,"f1":0.0784313725490196,"recall":0.04411764705882353,"precision":0.35294117647058826},{"u":0.44,"f1":0.06622516556291391,"recall":0.03676470588235294,"precision":0.3333333333333333},{"u":0.45,"f1":0.06622516556291391,"recall":0.03676470588235294,"precision":0.3333333333333333},{"u":0.46,"f1":0.06711409395973154,"recall":0.03676470588235294,"precision":0.38461538461538464},{"u":0.47,"f1":0.04081632653061224,"recall":0.022058823529411766,"precision":0.2727272727272727},{"u":0.48,"f1":0.0410958904109589,"recall":0.022058823529411766,"precision":0.3},{"u":0.49,"f1":0.0410958904109589,"recall":0.022058823529411766,"precision":0.3},{"u":0.5,"f1":0.0410958904109589,"recall":0.022058823529411766,"precision":0.3},{"u":0.51,"f1":0.027586206896551724,"recall":0.014705882352941176,"precision":0.2222222222222222},{"u":0.52,"f1":0.027586206896551724,"recall":0.014705882352941176,"precision":0.2222222222222222},{"u":0.53,"f1":0.027777777777777776,"recall":0.014705882352941176,"precision":0.25},{"u":0.54,"f1":0.027777777777777776,"recall":0.014705882352941176,"precision":0.25},{"u":0.55,"f1":0.013986013986013986,"recall":0.007352941176470588,"precision":0.14285714285714285},{"u":0.56,"f1":0.014084507042253521,"recall":0.007352941176470588,"precision":0.16666666666666666},{"u":0.57,"f1":0.014084507042253521,"recall":0.007352941176470588,"precision":0.16666666666666666},{"u":0.58,"f1":0.014184397163120567,"recall":0.007352941176470588,"precision":0.2},{"u":0.59,"f1":0.014184397163120567,"recall":0.007352941176470588,"precision":0.2},{"u":0.6,"f1":0.014184397163120567,"recall":0.007352941176470588,"precision":0.2},{"u":0.61,"f1":0.014184397163120567,"recall":0.007352941176470588,"precision":0.2},{"u":0.62,"f1":0.014285714285714285,"recall":0.007352941176470588,"precision":0.25},{"u":0.63,"f1":0.014285714285714285,"recall":0.007352941176470588,"precision":0.25},{"u":0.64,"f1":0.014285714285714285,"recall":0.007352941176470588,"precision":0.25},{"u":0.65,"f1":0.014388489208633094,"recall":0.007352941176470588,"precision":0.3333333333333333},{"u":0.66,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.67,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.68,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.69,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.7,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.71,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.72,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.73,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.74,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.75,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.76,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.77,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.78,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.79,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.8,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.81,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.82,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.83,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.84,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.85,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.86,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.87,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.88,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.89,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.9,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.91,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.92,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.93,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.94,"f1":0.0,"recall":0.0,"precision":0.0},{"u":0.95,"f1":0.0,"recall":0.0,"precision":0.0}],"calibracion":{"pred":[0.027666310124382174,0.029676715601362494,0.031338368830237925,0.03346319551537332,0.03662770441842507,0.04385155756821716,0.0510026813643498,0.06501697491812478,0.09999896897952525,0.2518551067623686],"real":[0.004830917874396135,0.009708737864077669,0.02912621359223301,0.024271844660194174,0.05825242718446602,0.038834951456310676,0.024271844660194174,0.06310679611650485,0.17475728155339806,0.2318840579710145]},"prob_cv_resumen":{"min":0.02601134505569616,"mediana":0.03941279349302533,"max":0.8884708007713995,"media":0.06712028309304281},"confusion_test":{"tn":425,"fp":57,"fn":18,"tp":16},"comparacion":[{"Modelo":"Naive Bayes","Estrategia":"Submuestreo","F1":0.309,"F1_std":0.0852,"Recall":0.6148,"Precision":0.2074,"ROC_AUC":0.7776,"Accuracy":0.8171},{"Modelo":"Naive Bayes","Estrategia":"SMOTE","F1":0.3029,"F1_std":0.0596,"Recall":0.5725,"Precision":0.2073,"ROC_AUC":0.7615,"Accuracy":0.8235},{"Modelo":"Regresión logística","Estrategia":"Submuestreo","F1":0.298,"F1_std":0.0688,"Recall":0.6747,"Precision":0.1921,"ROC_AUC":0.7804,"Accuracy":0.7886},{"Modelo":"SVM lineal","Estrategia":"Submuestreo","F1":0.2911,"F1_std":0.0742,"Recall":0.6456,"Precision":0.1887,"ROC_AUC":0.7781,"Accuracy":0.789},{"Modelo":"SVM","Estrategia":"Submuestreo","F1":0.2904,"F1_std":0.0667,"Recall":0.6747,"Precision":0.1859,"ROC_AUC":0.7614,"Accuracy":0.7798},{"Modelo":"SVM lineal","Estrategia":"class_weight","F1":0.2871,"F1_std":0.0587,"Recall":0.6313,"Precision":0.1865,"ROC_AUC":0.7761,"Accuracy":0.7924},{"Modelo":"Naive Bayes","Estrategia":"Sin balanceo","F1":0.2868,"F1_std":0.0895,"Recall":0.3588,"Precision":0.2408,"ROC_AUC":0.772,"Accuracy":0.8812},{"Modelo":"Regresión logística","Estrategia":"class_weight","F1":0.2858,"F1_std":0.0635,"Recall":0.6538,"Precision":0.1836,"ROC_AUC":0.7795,"Accuracy":0.7827},{"Modelo":"SVM lineal","Estrategia":"SMOTE","F1":0.2834,"F1_std":0.0615,"Recall":0.6165,"Precision":0.1845,"ROC_AUC":0.7708,"Accuracy":0.7934},{"Modelo":"Regresión logística","Estrategia":"SMOTE","F1":0.2787,"F1_std":0.0667,"Recall":0.6308,"Precision":0.1795,"ROC_AUC":0.7775,"Accuracy":0.7832},{"Modelo":"Red neuronal (MLP)","Estrategia":"Submuestreo","F1":0.2768,"F1_std":0.0667,"Recall":0.6747,"Precision":0.1746,"ROC_AUC":0.778,"Accuracy":0.7643},{"Modelo":"Stacking","Estrategia":"Submuestreo","F1":0.2737,"F1_std":0.056,"Recall":0.6819,"Precision":0.1718,"ROC_AUC":0.7608,"Accuracy":0.76},{"Modelo":"AdaBoost","Estrategia":"SMOTE","F1":0.2723,"F1_std":0.0543,"Recall":0.6533,"Precision":0.173,"ROC_AUC":0.7714,"Accuracy":0.7726},{"Modelo":"SVM","Estrategia":"SMOTE","F1":0.2697,"F1_std":0.0788,"Recall":0.5357,"Precision":0.1814,"ROC_AUC":0.6812,"Accuracy":0.8075},{"Modelo":"SVM","Estrategia":"class_weight","F1":0.2646,"F1_std":0.0669,"Recall":0.5725,"Precision":0.1731,"ROC_AUC":0.7224,"Accuracy":0.7895},{"Modelo":"AdaBoost","Estrategia":"Submuestreo","F1":0.259,"F1_std":0.0607,"Recall":0.6522,"Precision":0.1623,"ROC_AUC":0.7621,"Accuracy":0.7532},{"Modelo":"Red neuronal (MLP)","Estrategia":"SMOTE","F1":0.2552,"F1_std":0.054,"Recall":0.5434,"Precision":0.1675,"ROC_AUC":0.7126,"Accuracy":0.79},{"Modelo":"Gradient Boosting","Estrategia":"SMOTE","F1":0.2425,"F1_std":0.0647,"Recall":0.4407,"Precision":0.1695,"ROC_AUC":0.6749,"Accuracy":0.824},{"Modelo":"KNN","Estrategia":"Submuestreo","F1":0.2308,"F1_std":0.0464,"Recall":0.6462,"Precision":0.141,"ROC_AUC":0.7288,"Accuracy":0.7149},{"Modelo":"Gradient Boosting","Estrategia":"Submuestreo","F1":0.2158,"F1_std":0.0347,"Recall":0.6258,"Precision":0.1305,"ROC_AUC":0.7118,"Accuracy":0.7022},{"Modelo":"Random Forest","Estrategia":"class_weight","F1":0.2111,"F1_std":0.0994,"Recall":0.2736,"Precision":0.1757,"ROC_AUC":0.7224,"Accuracy":0.869},{"Modelo":"KNN","Estrategia":"SMOTE","F1":0.1986,"F1_std":0.0613,"Recall":0.4489,"Precision":0.1281,"ROC_AUC":0.5797,"Accuracy":0.7619},{"Modelo":"Random Forest","Estrategia":"Submuestreo","F1":0.1924,"F1_std":0.0267,"Recall":0.6764,"Precision":0.1123,"ROC_AUC":0.7086,"Accuracy":0.6295},{"Modelo":"Bagging","Estrategia":"Submuestreo","F1":0.1916,"F1_std":0.0316,"Recall":0.5962,"Precision":0.1144,"ROC_AUC":0.673,"Accuracy":0.6741},{"Modelo":"Stacking","Estrategia":"SMOTE","F1":0.1916,"F1_std":0.049,"Recall":0.361,"Precision":0.1311,"ROC_AUC":0.635,"Accuracy":0.8002},{"Modelo":"KNN","Estrategia":"Sin balanceo","F1":0.1872,"F1_std":0.111,"Recall":0.133,"Precision":0.3525,"ROC_AUC":0.6305,"Accuracy":0.9273},{"Modelo":"Árbol de decisión","Estrategia":"class_weight","F1":0.1853,"F1_std":0.1131,"Recall":0.1995,"Precision":0.1773,"ROC_AUC":0.5699,"Accuracy":0.8889},{"Modelo":"Árbol de decisión","Estrategia":"Sin balanceo","F1":0.1811,"F1_std":0.0994,"Recall":0.1687,"Precision":0.2011,"ROC_AUC":0.5562,"Accuracy":0.8967},{"Modelo":"Random Forest","Estrategia":"SMOTE","F1":0.1756,"F1_std":0.0509,"Recall":0.3308,"Precision":0.1205,"ROC_AUC":0.6212,"Accuracy":0.7944},{"Modelo":"Árbol de decisión","Estrategia":"Submuestreo","F1":0.1722,"F1_std":0.0391,"Recall":0.5802,"Precision":0.1012,"ROC_AUC":0.607,"Accuracy":0.6372},{"Modelo":"Bagging","Estrategia":"SMOTE","F1":0.1715,"F1_std":0.073,"Recall":0.3176,"Precision":0.1186,"ROC_AUC":0.6181,"Accuracy":0.8016},{"Modelo":"Árbol de decisión","Estrategia":"SMOTE","F1":0.1617,"F1_std":0.0557,"Recall":0.3242,"Precision":0.1088,"ROC_AUC":0.5633,"Accuracy":0.7779},{"Modelo":"Bagging","Estrategia":"Sin balanceo","F1":0.1615,"F1_std":0.1351,"Recall":0.1319,"Precision":0.2147,"ROC_AUC":0.6887,"Accuracy":0.9132},{"Modelo":"Random Forest","Estrategia":"Sin balanceo","F1":0.108,"F1_std":0.0836,"Recall":0.0808,"Precision":0.1686,"ROC_AUC":0.7305,"Accuracy":0.9112},{"Modelo":"Gradient Boosting","Estrategia":"Sin balanceo","F1":0.0709,"F1_std":0.074,"Recall":0.044,"Precision":0.2167,"ROC_AUC":0.7412,"Accuracy":0.9268},{"Modelo":"SVM","Estrategia":"Sin balanceo","F1":0.0401,"F1_std":0.0614,"Recall":0.0225,"Precision":0.2,"ROC_AUC":0.4989,"Accuracy":0.934},{"Modelo":"Regresión logística","Estrategia":"Sin balanceo","F1":0.0276,"F1_std":0.0553,"Recall":0.0148,"Precision":0.2,"ROC_AUC":0.7807,"Accuracy":0.9326},{"Modelo":"Stacking","Estrategia":"Sin balanceo","F1":0.0125,"F1_std":0.0375,"Recall":0.0071,"Precision":0.05,"ROC_AUC":0.725,"Accuracy":0.9336},{"Modelo":"SVM lineal","Estrategia":"Sin balanceo","F1":0.0,"F1_std":0.0,"Recall":0.0,"Precision":0.0,"ROC_AUC":0.7777,"Accuracy":0.9336},{"Modelo":"Red neuronal (MLP)","Estrategia":"Sin balanceo","F1":0.0,"F1_std":0.0,"Recall":0.0,"Precision":0.0,"ROC_AUC":0.7782,"Accuracy":0.9326},{"Modelo":"AdaBoost","Estrategia":"Sin balanceo","F1":0.0,"F1_std":0.0,"Recall":0.0,"Precision":0.0,"ROC_AUC":0.7762,"Accuracy":0.934}],"rasgos_tabla":[{"Metodo":"SelectKBest f_classif (k=1)","N_rasgos":1,"F1":0.2912,"F1_std":0.0707,"ROC_AUC":0.7437,"Rasgos":"nbumps"},{"Metodo":"SFS adelante (k=1)","N_rasgos":1,"F1":0.2912,"F1_std":0.0707,"ROC_AUC":0.7437,"Rasgos":"nbumps"},{"Metodo":"SelectKBest info_mutua (k=5)","N_rasgos":5,"F1":0.2833,"F1_std":0.068,"ROC_AUC":0.7678,"Rasgos":"gpuls, nbumps, nbumps2, nbumps3, energy"},{"Metodo":"SHAP (90% de la importancia)","N_rasgos":8,"F1":0.2819,"F1_std":0.062,"ROC_AUC":0.775,"Rasgos":"nbumps, gpuls, nbumps2, gdpuls, nbumps3, genergy, gdenergy, energy"},{"Metodo":"RFECV","N_rasgos":1,"F1":0.2813,"F1_std":0.0647,"ROC_AUC":0.7428,"Rasgos":"nbumps"},{"Metodo":"Todos los rasgos","N_rasgos":15,"F1":0.2693,"F1_std":0.0434,"ROC_AUC":0.7729,"Rasgos":"seismic, seismoacoustic, shift, genergy, gpuls, gdenergy, gdpuls, ghazard, nbumps, nbumps2, nbumps3, nbumps4, nbumps5, energy, maxenergy"},{"Metodo":"SelectFromModel L1","N_rasgos":5,"F1":0.2618,"F1_std":0.0511,"ROC_AUC":0.774,"Rasgos":"seismic, seismoacoustic, shift, gpuls, nbumps"},{"Metodo":"VarianceThreshold","N_rasgos":7,"F1":0.2583,"F1_std":0.0534,"ROC_AUC":0.7762,"Rasgos":"seismic, seismoacoustic, shift, gpuls, ghazard, nbumps, nbumps3"}],"ajuste":[{"Modelo":"Naive Bayes","Estrategia":"Submuestreo","F1_03":0.309,"Precision_promedio_cv_gridsearch":0.2418,"F1_umbral_defecto":0.309,"Umbral_calibrado":0.16,"F1_calibrado":0.3088,"Recall_calibrado":0.4779,"Precision_calibrado":0.2281,"ROC_AUC_calibrado":0.7496,"Brier_calibrado":0.0571,"Mejores_parametros":"{'clf__var_smoothing': 1e-09}"},{"Modelo":"Regresión logística","Estrategia":"Submuestreo","F1_03":0.298,"Precision_promedio_cv_gridsearch":0.277,"F1_umbral_defecto":0.3095,"Umbral_calibrado":0.1,"F1_calibrado":0.3226,"Recall_calibrado":0.5147,"Precision_calibrado":0.2349,"ROC_AUC_calibrado":0.7756,"Brier_calibrado":0.058,"Mejores_parametros":"{'clf__C': 0.1}"},{"Modelo":"SVM lineal","Estrategia":"Submuestreo","F1_03":0.2911,"Precision_promedio_cv_gridsearch":0.277,"F1_umbral_defecto":0.2992,"Umbral_calibrado":0.1,"F1_calibrado":0.3333,"Recall_calibrado":0.5368,"Precision_calibrado":0.2417,"ROC_AUC_calibrado":0.777,"Brier_calibrado":0.0579,"Mejores_parametros":"{'clf__C': 0.1}"}],"turnos":[[460.0,1.0,0.0,1.0,3000.0,0],[233.0,0.0,0.0,0.0,0.0,0],[527.0,0.0,0.0,0.0,0.0,0],[436.0,0.0,0.0,0.0,0.0,0],[164.0,0.0,0.0,0.0,0.0,0],[6.0,0.0,0.0,0.0,0.0,0],[1552.0,2.0,2.0,0.0,900.0,0],[604.0,0.0,0.0,0.0,0.0,0],[480.0,0.0,0.0,0.0,0.0,0],[596.0,3.0,3.0,0.0,1300.0,0],[84.0,0.0,0.0,0.0,0.0,0],[441.0,0.0,0.0,0.0,0.0,0],[126.0,0.0,0.0,0.0,0.0,0],[113.0,0.0,0.0,0.0,0.0,0],[104.0,5.0,2.0,2.0,25300.0,0],[89.0,0.0,0.0,0.0,0.0,0],[622.0,9.0,4.0,4.0,40600.0,1],[98.0,0.0,0.0,0.0,0.0,0],[3506.0,2.0,1.0,1.0,8700.0,1],[952.0,0.0,0.0,0.0,0.0,0],[25.0,0.0,0.0,0.0,0.0,0],[594.0,0.0,0.0,0.0,0.0,0],[237.0,0.0,0.0,0.0,0.0,0],[546.0,0.0,0.0,0.0,0.0,0],[436.0,0.0,0.0,0.0,0.0,0],[233.0,0.0,0.0,0.0,0.0,0],[204.0,0.0,0.0,0.0,0.0,0],[1512.0,0.0,0.0,0.0,0.0,0],[1443.0,1.0,0.0,1.0,3000.0,1],[510.0,0.0,0.0,0.0,0.0,0],[174.0,1.0,0.0,1.0,2000.0,0],[988.0,0.0,0.0,0.0,0.0,0],[89.0,1.0,1.0,0.0,300.0,0],[54.0,0.0,0.0,0.0,0.0,0],[1158.0,0.0,0.0,0.0,0.0,0],[486.0,1.0,0.0,1.0,4000.0,0],[1581.0,0.0,0.0,0.0,0.0,0],[488.0,0.0,0.0,0.0,0.0,0],[24.0,0.0,0.0,0.0,0.0,0],[2263.0,0.0,0.0,0.0,0.0,0],[437.0,0.0,0.0,0.0,0.0,0],[233.0,0.0,0.0,0.0,0.0,0],[141.0,1.0,1.0,0.0,700.0,0],[1927.0,1.0,0.0,0.0,40000.0,0],[194.0,0.0,0.0,0.0,0.0,0],[189.0,0.0,0.0,0.0,0.0,0],[916.0,0.0,0.0,0.0,0.0,0],[483.0,3.0,3.0,0.0,1700.0,1],[680.0,4.0,2.0,1.0,27100.0,0],[269.0,0.0,0.0,0.0,0.0,0],[1486.0,2.0,0.0,2.0,6000.0,0],[507.0,0.0,0.0,0.0,0.0,0],[21.0,0.0,0.0,0.0,0.0,0],[14.0,0.0,0.0,0.0,0.0,0],[350.0,1.0,1.0,0.0,100.0,0],[408.0,3.0,2.0,1.0,5300.0,0],[459.0,0.0,0.0,0.0,0.0,0],[2852.0,2.0,0.0,1.0,23000.0,0],[1192.0,1.0,0.0,1.0,6000.0,0],[583.0,2.0,2.0,0.0,1400.0,0],[121.0,2.0,2.0,0.0,1200.0,0],[2877.0,2.0,2.0,0.0,900.0,0],[342.0,3.0,1.0,2.0,2800.0,0],[314.0,0.0,0.0,0.0,0.0,0],[134.0,1.0,0.0,0.0,20000.0,0],[255.0,1.0,0.0,1.0,6000.0,0],[639.0,0.0,0.0,0.0,0.0,0],[284.0,1.0,1.0,0.0,300.0,0],[32.0,0.0,0.0,0.0,0.0,0],[736.0,0.0,0.0,0.0,0.0,0],[166.0,0.0,0.0,0.0,0.0,0],[1068.0,1.0,0.0,1.0,3000.0,0],[305.0,3.0,3.0,0.0,2000.0,0],[386.0,1.0,1.0,0.0,400.0,0],[232.0,0.0,0.0,0.0,0.0,0],[50.0,0.0,0.0,0.0,0.0,0],[186.0,0.0,0.0,0.0,0.0,0],[153.0,1.0,0.0,1.0,3000.0,0],[1388.0,3.0,0.0,3.0,9000.0,1],[393.0,0.0,0.0,0.0,0.0,0],[695.0,1.0,0.0,1.0,2000.0,0],[319.0,0.0,0.0,0.0,0.0,0],[485.0,0.0,0.0,0.0,0.0,1],[84.0,0.0,0.0,0.0,0.0,0],[855.0,2.0,2.0,0.0,1200.0,0],[221.0,0.0,0.0,0.0,0.0,0],[550.0,0.0,0.0,0.0,0.0,0],[300.0,0.0,0.0,0.0,0.0,0],[183.0,0.0,0.0,0.0,0.0,0],[33.0,1.0,0.0,1.0,2000.0,0],[585.0,1.0,1.0,0.0,100.0,0],[123.0,0.0,0.0,0.0,0.0,0],[25.0,0.0,0.0,0.0,0.0,0],[498.0,1.0,0.0,1.0,3000.0,0],[739.0,1.0,1.0,0.0,400.0,0],[6.0,0.0,0.0,0.0,0.0,0],[49.0,0.0,0.0,0.0,0.0,0],[1235.0,1.0,0.0,1.0,5000.0,0],[664.0,0.0,0.0,0.0,0.0,0],[1332.0,0.0,0.0,0.0,0.0,0],[628.0,1.0,0.0,0.0,20000.0,0],[486.0,0.0,0.0,0.0,0.0,0],[235.0,0.0,0.0,0.0,0.0,0],[324.0,0.0,0.0,0.0,0.0,0],[2313.0,4.0,0.0,4.0,19000.0,1],[346.0,5.0,1.0,4.0,13700.0,0],[1042.0,1.0,1.0,0.0,600.0,0],[43.0,0.0,0.0,0.0,0.0,0],[11.0,0.0,0.0,0.0,0.0,0],[782.0,3.0,1.0,2.0,4800.0,0],[111.0,0.0,0.0,0.0,0.0,0],[865.0,1.0,1.0,0.0,700.0,0],[1484.0,1.0,0.0,0.0,30000.0,0],[330.0,6.0,1.0,5.0,10300.0,0],[80.0,0.0,0.0,0.0,0.0,0],[430.0,0.0,0.0,0.0,0.0,0],[427.0,0.0,0.0,0.0,0.0,0],[1026.0,0.0,0.0,0.0,0.0,0],[514.0,1.0,0.0,1.0,4000.0,0],[1074.0,6.0,2.0,4.0,16700.0,0],[259.0,1.0,1.0,0.0,600.0,1],[112.0,0.0,0.0,0.0,0.0,0],[828.0,0.0,0.0,0.0,0.0,0],[792.0,1.0,1.0,0.0,200.0,1],[45.0,1.0,0.0,1.0,2000.0,0],[100.0,0.0,0.0,0.0,0.0,0],[72.0,1.0,0.0,1.0,5000.0,0],[144.0,2.0,0.0,2.0,3000.0,0],[37.0,0.0,0.0,0.0,0.0,0],[76.0,0.0,0.0,0.0,0.0,0],[124.0,0.0,0.0,0.0,0.0,0],[1766.0,6.0,1.0,5.0,17800.0,0],[2039.0,2.0,0.0,1.0,32000.0,0],[360.0,1.0,1.0,0.0,400.0,0],[184.0,0.0,0.0,0.0,0.0,0],[577.0,0.0,0.0,0.0,0.0,0],[407.0,1.0,0.0,1.0,2000.0,0],[167.0,9.0,5.0,4.0,13200.0,0],[422.0,0.0,0.0,0.0,0.0,0],[405.0,4.0,0.0,3.0,72000.0,0],[726.0,0.0,0.0,0.0,0.0,1],[181.0,2.0,1.0,1.0,3800.0,0],[210.0,0.0,0.0,0.0,0.0,0],[134.0,0.0,0.0,0.0,0.0,0],[514.0,0.0,0.0,0.0,0.0,0],[465.0,0.0,0.0,0.0,0.0,0],[86.0,4.0,0.0,4.0,12000.0,0],[491.0,1.0,1.0,0.0,400.0,0],[819.0,0.0,0.0,0.0,0.0,0],[70.0,1.0,0.0,1.0,4000.0,0],[111.0,0.0,0.0,0.0,0.0,0],[1534.0,2.0,0.0,1.0,72000.0,0],[472.0,1.0,1.0,0.0,200.0,0],[124.0,0.0,0.0,0.0,0.0,0],[552.0,0.0,0.0,0.0,0.0,0],[717.0,2.0,2.0,0.0,800.0,0],[504.0,0.0,0.0,0.0,0.0,0],[208.0,1.0,0.0,1.0,4000.0,0],[695.0,0.0,0.0,0.0,0.0,0],[44.0,0.0,0.0,0.0,0.0,0],[1043.0,2.0,1.0,1.0,2800.0,0],[861.0,0.0,0.0,0.0,0.0,0],[177.0,0.0,0.0,0.0,0.0,0],[116.0,0.0,0.0,0.0,0.0,0],[532.0,2.0,1.0,1.0,2800.0,0],[759.0,1.0,0.0,1.0,7000.0,0],[286.0,0.0,0.0,0.0,0.0,0],[540.0,2.0,1.0,1.0,3900.0,1],[141.0,0.0,0.0,0.0,0.0,0],[7.0,0.0,0.0,0.0,0.0,0],[121.0,0.0,0.0,0.0,0.0,0],[484.0,0.0,0.0,0.0,0.0,0],[677.0,1.0,0.0,0.0,10000.0,0],[327.0,0.0,0.0,0.0,0.0,0],[792.0,1.0,1.0,0.0,500.0,0],[510.0,0.0,0.0,0.0,0.0,0],[483.0,5.0,3.0,0.0,71300.0,0],[24.0,1.0,1.0,0.0,300.0,0],[273.0,0.0,0.0,0.0,0.0,0],[62.0,1.0,0.0,1.0,2000.0,0],[192.0,1.0,1.0,0.0,600.0,0],[362.0,0.0,0.0,0.0,0.0,0],[222.0,1.0,0.0,1.0,6000.0,0],[126.0,0.0,0.0,0.0,0.0,0],[233.0,1.0,0.0,1.0,2000.0,0],[466.0,0.0,0.0,0.0,0.0,0],[104.0,0.0,0.0,0.0,0.0,0],[115.0,0.0,0.0,0.0,0.0,0],[2159.0,3.0,2.0,1.0,5200.0,0],[632.0,1.0,0.0,1.0,3000.0,0],[15.0,0.0,0.0,0.0,0.0,0],[19.0,1.0,0.0,1.0,2000.0,0],[514.0,1.0,1.0,0.0,100.0,0],[334.0,0.0,0.0,0.0,0.0,0],[446.0,2.0,1.0,1.0,3300.0,0],[661.0,1.0,0.0,0.0,20000.0,0],[2519.0,3.0,0.0,2.0,49000.0,0],[888.0,0.0,0.0,0.0,0.0,0],[609.0,0.0,0.0,0.0,0.0,0],[661.0,0.0,0.0,0.0,0.0,0],[1107.0,2.0,1.0,1.0,3700.0,0],[417.0,2.0,2.0,0.0,500.0,0],[115.0,0.0,0.0,0.0,0.0,0],[2037.0,2.0,1.0,1.0,3700.0,0],[751.0,2.0,1.0,1.0,1600.0,0],[119.0,0.0,0.0,0.0,0.0,0],[47.0,0.0,0.0,0.0,0.0,0],[39.0,0.0,0.0,0.0,0.0,0],[92.0,1.0,0.0,1.0,2000.0,0],[268.0,0.0,0.0,0.0,0.0,0],[44.0,0.0,0.0,0.0,0.0,0],[2022.0,0.0,0.0,0.0,0.0,0],[2519.0,1.0,1.0,0.0,600.0,0],[1034.0,0.0,0.0,0.0,0.0,0],[348.0,0.0,0.0,0.0,0.0,0],[794.0,2.0,2.0,0.0,400.0,0],[624.0,5.0,2.0,2.0,34400.0,1],[229.0,0.0,0.0,0.0,0.0,0],[44.0,0.0,0.0,0.0,0.0,0],[160.0,0.0,0.0,0.0,0.0,0],[127.0,0.0,0.0,0.0,0.0,0],[140.0,0.0,0.0,0.0,0.0,0],[337.0,1.0,0.0,0.0,10000.0,0],[922.0,0.0,0.0,0.0,0.0,0],[1684.0,2.0,0.0,1.0,31000.0,0],[715.0,0.0,0.0,0.0,0.0,0],[321.0,0.0,0.0,0.0,0.0,0],[228.0,0.0,0.0,0.0,0.0,0],[1079.0,0.0,0.0,0.0,0.0,0],[1634.0,0.0,0.0,0.0,0.0,0],[1330.0,0.0,0.0,0.0,0.0,0],[185.0,0.0,0.0,0.0,0.0,1],[189.0,0.0,0.0,0.0,0.0,0],[391.0,1.0,0.0,1.0,1000.0,0],[462.0,0.0,0.0,0.0,0.0,1],[242.0,1.0,1.0,0.0,400.0,0],[1690.0,1.0,0.0,1.0,7000.0,1],[343.0,0.0,0.0,0.0,0.0,0],[228.0,0.0,0.0,0.0,0.0,0],[1824.0,2.0,2.0,0.0,1100.0,0],[347.0,1.0,1.0,0.0,200.0,0],[494.0,3.0,3.0,0.0,1600.0,0],[428.0,1.0,0.0,1.0,8000.0,0],[17.0,0.0,0.0,0.0,0.0,0],[157.0,0.0,0.0,0.0,0.0,0],[472.0,0.0,0.0,0.0,0.0,0],[982.0,0.0,0.0,0.0,0.0,0],[295.0,0.0,0.0,0.0,0.0,0],[82.0,0.0,0.0,0.0,0.0,0],[505.0,0.0,0.0,0.0,0.0,0],[231.0,3.0,1.0,2.0,10400.0,0],[16.0,0.0,0.0,0.0,0.0,0],[300.0,0.0,0.0,0.0,0.0,0],[417.0,6.0,2.0,4.0,11300.0,0],[317.0,0.0,0.0,0.0,0.0,0],[624.0,0.0,0.0,0.0,0.0,0],[931.0,1.0,0.0,1.0,3000.0,0],[35.0,0.0,0.0,0.0,0.0,0],[1155.0,2.0,1.0,1.0,3500.0,1],[376.0,0.0,0.0,0.0,0.0,0],[408.0,0.0,0.0,0.0,0.0,0],[93.0,1.0,0.0,1.0,3000.0,0],[39.0,0.0,0.0,0.0,0.0,0],[501.0,0.0,0.0,0.0,0.0,1],[422.0,0.0,0.0,0.0,0.0,0],[431.0,0.0,0.0,0.0,0.0,0],[450.0,2.0,1.0,1.0,3200.0,0],[25.0,0.0,0.0,0.0,0.0,0],[1576.0,3.0,2.0,0.0,51200.0,0],[38.0,0.0,0.0,0.0,0.0,0],[327.0,0.0,0.0,0.0,0.0,0],[314.0,0.0,0.0,0.0,0.0,0],[62.0,0.0,0.0,0.0,0.0,0],[588.0,0.0,0.0,0.0,0.0,1],[1369.0,7.0,4.0,2.0,15700.0,0],[1232.0,1.0,1.0,0.0,700.0,0],[208.0,0.0,0.0,0.0,0.0,0],[274.0,0.0,0.0,0.0,0.0,0],[753.0,0.0,0.0,0.0,0.0,0],[182.0,0.0,0.0,0.0,0.0,0],[1135.0,0.0,0.0,0.0,0.0,0],[1134.0,0.0,0.0,0.0,0.0,0],[34.0,1.0,1.0,0.0,600.0,0],[534.0,0.0,0.0,0.0,0.0,0],[59.0,1.0,1.0,0.0,300.0,0],[242.0,0.0,0.0,0.0,0.0,1],[41.0,1.0,0.0,1.0,4000.0,0],[402.0,0.0,0.0,0.0,0.0,0],[37.0,2.0,2.0,0.0,1200.0,0],[274.0,0.0,0.0,0.0,0.0,0],[149.0,1.0,1.0,0.0,800.0,0],[244.0,0.0,0.0,0.0,0.0,0],[30.0,0.0,0.0,0.0,0.0,0],[244.0,0.0,0.0,0.0,0.0,0],[7.0,0.0,0.0,0.0,0.0,0],[917.0,1.0,0.0,1.0,4000.0,0],[300.0,0.0,0.0,0.0,0.0,0],[859.0,1.0,1.0,0.0,200.0,0],[164.0,0.0,0.0,0.0,0.0,0],[2096.0,4.0,2.0,2.0,5100.0,0],[376.0,0.0,0.0,0.0,0.0,0],[196.0,0.0,0.0,0.0,0.0,0],[326.0,0.0,0.0,0.0,0.0,0],[406.0,0.0,0.0,0.0,0.0,0],[618.0,0.0,0.0,0.0,0.0,0],[238.0,6.0,5.0,1.0,5400.0,0],[3.0,0.0,0.0,0.0,0.0,0],[498.0,1.0,0.0,1.0,5000.0,0],[451.0,0.0,0.0,0.0,0.0,0],[46.0,1.0,0.0,1.0,4000.0,0],[547.0,0.0,0.0,0.0,0.0,0],[73.0,0.0,0.0,0.0,0.0,0],[317.0,0.0,0.0,0.0,0.0,0],[633.0,2.0,0.0,2.0,5000.0,0],[172.0,1.0,0.0,1.0,3000.0,0],[833.0,0.0,0.0,0.0,0.0,0],[398.0,0.0,0.0,0.0,0.0,1],[291.0,0.0,0.0,0.0,0.0,0],[1834.0,4.0,2.0,1.0,32700.0,1],[53.0,0.0,0.0,0.0,0.0,0],[208.0,2.0,1.0,0.0,40400.0,1],[112.0,0.0,0.0,0.0,0.0,0],[2451.0,8.0,4.0,4.0,11300.0,0],[33.0,0.0,0.0,0.0,0.0,0],[405.0,0.0,0.0,0.0,0.0,0],[198.0,1.0,1.0,0.0,500.0,0],[209.0,0.0,0.0,0.0,0.0,0],[593.0,1.0,0.0,1.0,4000.0,0],[262.0,0.0,0.0,0.0,0.0,0],[349.0,3.0,3.0,0.0,1300.0,0],[493.0,1.0,1.0,0.0,900.0,0],[774.0,4.0,1.0,3.0,12700.0,1],[1004.0,0.0,0.0,0.0,0.0,0],[589.0,0.0,0.0,0.0,0.0,0],[260.0,0.0,0.0,0.0,0.0,0],[684.0,1.0,0.0,1.0,2000.0,0],[544.0,2.0,1.0,1.0,1400.0,0],[255.0,0.0,0.0,0.0,0.0,0],[601.0,0.0,0.0,0.0,0.0,0],[57.0,0.0,0.0,0.0,0.0,0],[639.0,0.0,0.0,0.0,0.0,0],[368.0,1.0,1.0,0.0,800.0,0],[25.0,0.0,0.0,0.0,0.0,0],[81.0,0.0,0.0,0.0,0.0,0],[114.0,0.0,0.0,0.0,0.0,0],[142.0,0.0,0.0,0.0,0.0,0],[328.0,1.0,0.0,1.0,2000.0,0],[350.0,0.0,0.0,0.0,0.0,0],[213.0,0.0,0.0,0.0,0.0,0],[949.0,5.0,2.0,2.0,26600.0,0],[93.0,1.0,0.0,1.0,5000.0,0],[2075.0,2.0,2.0,0.0,900.0,1],[562.0,0.0,0.0,0.0,0.0,0],[297.0,0.0,0.0,0.0,0.0,0],[331.0,0.0,0.0,0.0,0.0,0],[453.0,0.0,0.0,0.0,0.0,1],[1297.0,5.0,2.0,2.0,36200.0,0],[118.0,0.0,0.0,0.0,0.0,0],[137.0,0.0,0.0,0.0,0.0,0],[224.0,5.0,2.0,3.0,9900.0,1],[358.0,0.0,0.0,0.0,0.0,0],[294.0,0.0,0.0,0.0,0.0,0],[868.0,1.0,0.0,1.0,4000.0,0],[242.0,1.0,1.0,0.0,700.0,0],[513.0,2.0,1.0,1.0,2300.0,0],[163.0,0.0,0.0,0.0,0.0,0],[158.0,0.0,0.0,0.0,0.0,0],[3155.0,1.0,1.0,0.0,800.0,1],[702.0,0.0,0.0,0.0,0.0,0],[485.0,2.0,1.0,1.0,1300.0,0],[178.0,3.0,2.0,1.0,5800.0,1],[513.0,0.0,0.0,0.0,0.0,0],[721.0,1.0,1.0,0.0,300.0,0],[451.0,4.0,3.0,1.0,2900.0,0],[588.0,0.0,0.0,0.0,0.0,0],[213.0,2.0,1.0,1.0,1700.0,0],[40.0,1.0,1.0,0.0,200.0,0],[636.0,0.0,0.0,0.0,0.0,0],[241.0,0.0,0.0,0.0,0.0,0],[732.0,1.0,0.0,1.0,3000.0,0],[423.0,1.0,1.0,0.0,300.0,0],[491.0,3.0,1.0,2.0,9300.0,0],[185.0,0.0,0.0,0.0,0.0,0],[189.0,1.0,1.0,0.0,700.0,0],[779.0,0.0,0.0,0.0,0.0,0],[373.0,0.0,0.0,0.0,0.0,0],[398.0,0.0,0.0,0.0,0.0,0],[341.0,1.0,1.0,0.0,400.0,0],[32.0,1.0,0.0,1.0,4000.0,0],[345.0,0.0,0.0,0.0,0.0,0],[1325.0,1.0,0.0,1.0,4000.0,0],[412.0,0.0,0.0,0.0,0.0,0],[1727.0,4.0,1.0,2.0,31800.0,0],[48.0,0.0,0.0,0.0,0.0,0],[153.0,0.0,0.0,0.0,0.0,0],[1973.0,1.0,0.0,1.0,8000.0,0],[368.0,0.0,0.0,0.0,0.0,0],[53.0,0.0,0.0,0.0,0.0,0],[408.0,0.0,0.0,0.0,0.0,0],[591.0,1.0,1.0,0.0,200.0,0],[2116.0,0.0,0.0,0.0,0.0,0],[490.0,1.0,1.0,0.0,400.0,0],[761.0,2.0,1.0,1.0,2700.0,0],[457.0,0.0,0.0,0.0,0.0,0],[450.0,0.0,0.0,0.0,0.0,1],[83.0,0.0,0.0,0.0,0.0,0],[206.0,0.0,0.0,0.0,0.0,0],[913.0,4.0,2.0,2.0,14100.0,0],[870.0,0.0,0.0,0.0,0.0,0],[471.0,1.0,1.0,0.0,700.0,0],[117.0,0.0,0.0,0.0,0.0,0],[645.0,1.0,0.0,1.0,3000.0,0],[267.0,1.0,1.0,0.0,800.0,0],[259.0,1.0,0.0,1.0,4000.0,0],[3060.0,3.0,1.0,2.0,6500.0,0],[1623.0,3.0,0.0,2.0,25000.0,0],[250.0,0.0,0.0,0.0,0.0,0],[94.0,0.0,0.0,0.0,0.0,0],[255.0,0.0,0.0,0.0,0.0,0],[389.0,0.0,0.0,0.0,0.0,0],[643.0,4.0,1.0,3.0,14400.0,0],[254.0,0.0,0.0,0.0,0.0,0],[16.0,0.0,0.0,0.0,0.0,0],[338.0,1.0,1.0,0.0,400.0,0],[26.0,1.0,1.0,0.0,800.0,0],[2153.0,3.0,1.0,2.0,3900.0,0],[260.0,6.0,3.0,3.0,7700.0,0],[53.0,0.0,0.0,0.0,0.0,0],[584.0,0.0,0.0,0.0,0.0,0],[111.0,0.0,0.0,0.0,0.0,0],[57.0,0.0,0.0,0.0,0.0,0],[134.0,0.0,0.0,0.0,0.0,0],[36.0,0.0,0.0,0.0,0.0,0],[597.0,0.0,0.0,0.0,0.0,0],[267.0,0.0,0.0,0.0,0.0,0],[507.0,0.0,0.0,0.0,0.0,0],[628.0,6.0,3.0,2.0,44000.0,0],[271.0,0.0,0.0,0.0,0.0,0],[37.0,2.0,2.0,0.0,900.0,0],[882.0,2.0,0.0,1.0,303000.0,0],[568.0,0.0,0.0,0.0,0.0,0],[284.0,1.0,0.0,1.0,6000.0,0],[2307.0,4.0,0.0,2.0,54000.0,0],[177.0,0.0,0.0,0.0,0.0,0],[41.0,0.0,0.0,0.0,0.0,0],[292.0,0.0,0.0,0.0,0.0,0],[2256.0,3.0,1.0,2.0,8400.0,1],[602.0,1.0,1.0,0.0,200.0,0],[278.0,0.0,0.0,0.0,0.0,0],[472.0,0.0,0.0,0.0,0.0,0],[494.0,0.0,0.0,0.0,0.0,0],[28.0,0.0,0.0,0.0,0.0,0],[1191.0,1.0,0.0,1.0,3000.0,0],[60.0,0.0,0.0,0.0,0.0,0],[261.0,1.0,1.0,0.0,300.0,0],[485.0,0.0,0.0,0.0,0.0,0],[92.0,1.0,0.0,1.0,4000.0,0],[276.0,4.0,1.0,3.0,7800.0,0],[213.0,1.0,0.0,1.0,6000.0,0],[148.0,0.0,0.0,0.0,0.0,0],[380.0,2.0,2.0,0.0,1100.0,1],[368.0,0.0,0.0,0.0,0.0,0],[155.0,1.0,0.0,1.0,5000.0,0],[35.0,0.0,0.0,0.0,0.0,0],[318.0,0.0,0.0,0.0,0.0,0],[28.0,0.0,0.0,0.0,0.0,0],[683.0,0.0,0.0,0.0,0.0,0],[396.0,0.0,0.0,0.0,0.0,1],[794.0,1.0,1.0,0.0,200.0,0],[38.0,2.0,1.0,1.0,1300.0,0],[37.0,2.0,1.0,1.0,5500.0,0],[41.0,2.0,1.0,1.0,3300.0,0],[268.0,1.0,0.0,1.0,1000.0,0],[595.0,0.0,0.0,0.0,0.0,0],[495.0,5.0,3.0,2.0,12500.0,0],[91.0,0.0,0.0,0.0,0.0,0],[281.0,1.0,1.0,0.0,700.0,0],[317.0,0.0,0.0,0.0,0.0,0],[200.0,0.0,0.0,0.0,0.0,0],[827.0,2.0,1.0,1.0,4700.0,0],[376.0,0.0,0.0,0.0,0.0,0],[205.0,1.0,0.0,0.0,10000.0,0],[321.0,0.0,0.0,0.0,0.0,0],[120.0,0.0,0.0,0.0,0.0,0],[505.0,1.0,0.0,1.0,9000.0,0],[269.0,0.0,0.0,0.0,0.0,0],[539.0,0.0,0.0,0.0,0.0,0],[315.0,1.0,1.0,0.0,400.0,0],[224.0,0.0,0.0,0.0,0.0,0],[307.0,0.0,0.0,0.0,0.0,0],[377.0,0.0,0.0,0.0,0.0,0],[313.0,0.0,0.0,0.0,0.0,0],[546.0,0.0,0.0,0.0,0.0,0],[249.0,0.0,0.0,0.0,0.0,0],[223.0,0.0,0.0,0.0,0.0,0],[44.0,0.0,0.0,0.0,0.0,0],[341.0,0.0,0.0,0.0,0.0,0],[524.0,1.0,0.0,0.0,30000.0,0],[1047.0,0.0,0.0,0.0,0.0,0],[722.0,0.0,0.0,0.0,0.0,0],[152.0,1.0,1.0,0.0,100.0,0],[1140.0,3.0,1.0,1.0,22600.0,1],[758.0,2.0,1.0,1.0,1200.0,1],[655.0,0.0,0.0,0.0,0.0,0],[428.0,1.0,0.0,1.0,2000.0,0],[19.0,0.0,0.0,0.0,0.0,0],[126.0,1.0,1.0,0.0,300.0,0],[375.0,4.0,2.0,1.0,204400.0,0],[521.0,0.0,0.0,0.0,0.0,0],[201.0,0.0,0.0,0.0,0.0,0],[166.0,0.0,0.0,0.0,0.0,0],[540.0,0.0,0.0,0.0,0.0,0],[608.0,1.0,1.0,0.0,200.0,0],[439.0,4.0,4.0,0.0,1600.0,0],[293.0,3.0,1.0,2.0,6200.0,0],[83.0,0.0,0.0,0.0,0.0,0]]};
+</script>
+<script>
+(function(){
+'use strict';
+const D = window.DATOS;
+const NS = 'http://www.w3.org/2000/svg';
+const $ = (s, r) => (r || document).querySelector(s);
+const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
+const reducido = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function el(tag, attrs, parent, text){ const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); if (text !== undefined) e.textContent = text; return e; }
+const f3 = (x, d) => x.toFixed(d === undefined ? 3 : d).replace('.', ',');
+const pc = (x, d) => (x * 100).toFixed(d === undefined ? 1 : d).replace('.', ',') + '%';
+const C = {coal:'#12171E', slate:'#3A4757', mute:'#667282', amber:'#F2A900', amberd:'#9A6A00', blue:'#2E7A9B', danger:'#C4432B', ok:'#2F8F6B', p2:'#E1E6E3', p3:'#CBD3CF'};
+
+/* ---------- escena, escala y navegación ---------- */
+const stage = $('#stage'); let escala = 1;
+function ajustar(){ escala = Math.min(innerWidth / 1920, innerHeight / 1080); stage.style.transform = 'translate(-50%,-50%) scale(' + escala + ')'; }
+addEventListener('resize', ajustar); ajustar();
+
+const slides = $$('.slide');
+let actual = -1, anim = null;
+const enter = {}, leave = {};
+
+const NOTAS = [
+ '<b>Portada (30 s).</b> Presentarnos. El trazo es un sismograma simulado: cada pico por encima de la línea punteada es un evento de más de 10⁴ julios. Esa es la pregunta del proyecto: ¿se puede avisar antes?',
+ '<b>El problema (1 min).</b> Un turno son 8 horas. Con lo que midieron los geófonos en el turno anterior queremos decir si en el siguiente habrá un evento de alta energía. Es clasificación binaria. Avanzar con → para revelar cada bloque.',
+ '<b>Los datos (1 min).</b> Dataset de UCI: 2.584 turnos, 18 variables, dos tajos de una mina en Polonia. Hagan clic en los grupos para ver qué mide cada uno; en ámbar están los 5 rasgos que usa el modelo final.',
+ '<b>El reto (1,5 min).</b> Solo el 6,6% de los turnos son peligrosos. Pulsar «Probar el modelo que nunca avisa»: acierta el 93,4% y detecta 0 de 170. Por eso usamos el F1 de la clase peligrosa y no el accuracy.',
+ '<b>EDA (1,5 min).</b> El tipo de turno pesa: 9,20% de peligrosos en turnos de extracción frente a 1,85% en preparación. Con phik, ninguna variable pasa de 0,35: ya sabíamos que sería difícil. Quitamos 6 duplicados y 3 columnas constantes; los extremos se conservan porque son eventos reales.',
+ '<b>Preparación (1,5 min).</b> Partición 80/20 una sola vez. Escalado MinMax, sin PCA, y 6 métodos de selección. Fíjense en el gráfico: todas las barras de error se solapan. La regla del plan dejaba un solo rasgo y la cambiamos por una que pide al menos 3; lo documentamos.',
+ '<b>41 combinaciones (1,5 min).</b> 12 modelos × 4 estrategias de balanceo. Cambien de métrica con los botones y pasen el mouse sobre las celdas. Mensaje: balancear es lo que más pesa (F1 promedio 0,09 → 0,25) y los cinco primeros son indistinguibles.',
+ '<b>La trampa (1 min).</b> Cada punto es una combinación. Los de más accuracy son los que no detectan nada. Las mejores por F1 quedan a la izquierda de la línea punteada de «siempre sin peligro».',
+ '<b>Un modelo útil (1,5 min).</b> Contar la historia con honestidad: la primera versión (regresión logística con F1) tenía probabilidades pegadas a 0,5 y no servía para la app. Ajustamos con precisión promedio y calibramos. El F1 en test casi no cambió; lo que ganamos es un riesgo interpretable. Aclarar que el test ya se había visto una vez.',
+ '<b>Umbral (1 min).</b> Mover el deslizador: con umbral bajo detectamos más pero con más falsas alarmas; con umbral alto, lo contrario. Elegimos 10% con validación cruzada sobre train, nunca con test.',
+ '<b>Resultado en test (1 min).</b> 16 de 34 detectados, 57 falsas alarmas entre 482 turnos sin peligro. Frente a validación cruzada (F1 0,333) baja a 0,299: esperable con tan pocos positivos.',
+ '<b>Demo (1,5 min).</b> Es el mismo modelo calibrado de la app, recalculado en el navegador. Probar un preset y luego «Turno real al azar», que muestra el valor real. Mencionar que la app Gradio hace lo mismo con formulario y carga de CSV.',
+ '<b>Conclusiones (1 min).</b> Ser claros: es una alerta que ordena turnos por riesgo, no un sistema de certeza. Mencionar las limitaciones (34 positivos, test visto una vez) y el trabajo futuro.',
+ '<b>Cierre (30 s).</b> Agradecer, abrir preguntas. Si hay tiempo, volver a la demo (tecla ← dos veces) con datos que propongan.'
+];
+
+function mostrarNotas(){ $('#notes').innerHTML = NOTAS[actual] || ''; }
+function frags(s){ return $$('.frag', s); }
+function mostrarTodos(s){ frags(s).forEach(f => f.classList.add('show')); }
+function irA(i, desdeAtras){
+  i = Math.max(0, Math.min(slides.length - 1, i));
+  if (i === actual) return;
+  if (leave[actual]) leave[actual]();
+  slides.forEach((s, k) => s.classList.toggle('active', k === i));
+  actual = i;
+  const s = slides[i];
+  if (desdeAtras || reducido) mostrarTodos(s); else frags(s).forEach(f => f.classList.remove('show'));
+  $('#pos').textContent = (i + 1) + ' / ' + slides.length;
+  $('#progress').style.width = ((i + 1) / slides.length * 100) + '%';
+  history.replaceState(null, '', '#' + (i + 1));
+  mostrarNotas();
+  if (enter[i]) enter[i]();
+  $$('#overview .card').forEach((c, k) => c.classList.toggle('cur', k === i));
+  iniciarCrono();
+}
+function siguiente(){
+  const s = slides[actual], ocultos = frags(s).filter(f => !f.classList.contains('show'));
+  if (ocultos.length){ ocultos[0].classList.add('show'); return; }
+  irA(actual + 1);
+}
+function anterior(){
+  const s = slides[actual], visibles = frags(s).filter(f => f.classList.contains('show'));
+  if (visibles.length){ visibles[visibles.length - 1].classList.remove('show'); return; }
+  irA(actual - 1, true);
+}
+$('#bNext').onclick = siguiente; $('#bPrev').onclick = anterior;
+$('#bFull').onclick = () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); };
+function alternarNotas(){ const n = $('#notes'); n.style.display = n.style.display === 'block' ? 'none' : 'block'; }
+$('#bNotes').onclick = alternarNotas;
+function alternarVista(){ const o = $('#overview'); o.style.display = o.style.display === 'block' ? 'none' : 'block'; }
+$('#bOv').onclick = alternarVista;
+slides.forEach((s, k) => { const c = document.createElement('div'); c.className = 'card'; c.innerHTML = '<small>' + (k + 1) + '</small>' + s.dataset.title; c.onclick = () => { $('#overview').style.display = 'none'; irA(k); mostrarTodos(slides[k]); }; $('#ovgrid').appendChild(c); });
+
+let t0 = null, crono = null;
+function iniciarCrono(){ if (t0 === null){ t0 = Date.now(); crono = setInterval(() => { const s = Math.floor((Date.now() - t0) / 1000); $('#timer').textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); }, 500); } }
+addEventListener('keydown', e => {
+  if (e.target && e.target.tagName === 'INPUT' && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) return;
+  const k = e.key;
+  if (k === 'ArrowRight' || k === 'PageDown' || k === ' ' || k === 'Enter'){ e.preventDefault(); if ($('#overview').style.display !== 'block') siguiente(); }
+  else if (k === 'ArrowLeft' || k === 'PageUp' || k === 'Backspace'){ e.preventDefault(); anterior(); }
+  else if (k === 'Home') irA(0);
+  else if (k === 'End') irA(slides.length - 1);
+  else if (k === 'f' || k === 'F') $('#bFull').click();
+  else if (k === 'n' || k === 'N') alternarNotas();
+  else if (k === 'o' || k === 'O' || k === 'Escape'){ if (k === 'Escape') $('#overview').style.display = 'none'; else alternarVista(); }
+  else if (k === 't' || k === 'T'){ const t = $('#timer'); t.style.display = t.style.display === 'block' ? 'none' : 'block'; iniciarCrono(); }
+});
+let tx = null;
+addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, {passive:true});
+addEventListener('touchend', e => { if (tx === null) return; const dx = e.changedTouches[0].clientX - tx; if (Math.abs(dx) > 60){ dx < 0 ? siguiente() : anterior(); } tx = null; }, {passive:true});
+setTimeout(() => { $('#hint').style.opacity = 0; }, 5000);
+
+/* ---------- utilidades de animación ---------- */
+function contar(nodo, hasta, dur, dec, sufijo){
+  const dar = v => (dec ? f3(v, dec) : miles(Math.round(v))) + (sufijo || '');
+  if (reducido){ nodo.textContent = dar(hasta); return; }
+  const ini = performance.now();
+  function paso(t){ const p = Math.max(0, Math.min(1, (t - ini) / dur)), e = 1 - Math.pow(1 - p, 3); nodo.textContent = dar(hasta * e); if (p < 1) requestAnimationFrame(paso); }
+  requestAnimationFrame(paso);
+}
+function miles(n){ return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
+const tip = $('#tip');
+function verTip(ev, html){ tip.innerHTML = html; tip.style.display = 'block'; tip.style.fontSize = Math.max(14, 20 * escala) + 'px'; const w = tip.offsetWidth, h = tip.offsetHeight; let x = ev.clientX + 16, y = ev.clientY + 16; if (x + w > innerWidth - 8) x = ev.clientX - w - 16; if (y + h > innerHeight - 8) y = ev.clientY - h - 16; tip.style.left = x + 'px'; tip.style.top = y + 'px'; }
+function ocultarTip(){ tip.style.display = 'none'; }
+function lim(svg){ while (svg.firstChild) svg.removeChild(svg.firstChild); }
+
+/* ---------- 1 portada: sismograma ---------- */
+(function(){
+  const cv = $('#sismo'), cx = cv.getContext('2d'), W = 1920, H = 520, N = 960, base = H * 0.5;
+  const y = new Array(N).fill(0); let t = 0, pico = 0, esp = 140, enMarcha = false;
+  const umbralY = base - 170;
+  function paso(){
+    t += 1; esp -= 1;
+    if (esp <= 0){ pico = 1; esp = 220 + Math.random() * 260; }
+    let v = (Math.sin(t * 0.37) * 6 + Math.sin(t * 0.11) * 9 + (Math.random() - 0.5) * 16);
+    if (pico > 0.02){ v += Math.sin(t * 0.9) * 215 * pico * (Math.random() * .3 + .85); pico *= 0.92; }
+    y.push(v); y.shift();
+  }
+  function dibujar(){
+    cx.clearRect(0, 0, W, H);
+    cx.strokeStyle = 'rgba(136,150,165,.35)'; cx.lineWidth = 2; cx.setLineDash([10, 10]);
+    cx.beginPath(); cx.moveTo(0, umbralY); cx.lineTo(W, umbralY); cx.stroke(); cx.setLineDash([]);
+    cx.fillStyle = '#8896A5'; cx.font = '24px Barlow, sans-serif'; cx.fillText('10⁴ J', 1780, umbralY - 12);
+    cx.lineWidth = 3; cx.lineJoin = 'round';
+    for (let i = 1; i < N; i++){
+      const x0 = (i - 1) / (N - 1) * W, x1 = i / (N - 1) * W, a = base + y[i - 1], b = base + y[i];
+      const alto = Math.min(a, b) < umbralY;
+      cx.strokeStyle = alto ? '#F2A900' : 'rgba(184,194,204,.85)';
+      cx.beginPath(); cx.moveTo(x0, a); cx.lineTo(x1, b); cx.stroke();
+    }
+  }
+  function bucle(){ if (!enMarcha) return; paso(); paso(); dibujar(); requestAnimationFrame(bucle); }
+  enter[0] = function(){ for (let k = 0; k < 1100; k++) paso(); dibujar(); if (reducido) return; enMarcha = true; bucle(); };
+  leave[0] = function(){ enMarcha = false; };
+})();
+
+/* ---------- 3 datos ---------- */
+const GRUPOS = [
+ {n:'Evaluaciones de peligro', s:'seismic · seismoacoustic · ghazard', v:['seismic','seismoacoustic','ghazard'], t:'El personal de la mina califica cada turno con letras, de «sin peligro» (a) a «estado de peligro» (d), por el método sísmico y el sismoacústico. Como van de menos a más, las codificamos de forma ordinal.'},
+ {n:'Tipo de turno', s:'shift', v:['shift'], t:'W es un turno de extracción de carbón y N uno de preparación. En los datos, el 9,2% de los turnos W fue peligroso frente al 1,85% de los N.'},
+ {n:'Geófono más activo', s:'genergy · gpuls · gdenergy · gdpuls', v:['genergy','gpuls','gdenergy','gdpuls'], t:'Energía y pulsos que registró el geófono más activo en el turno anterior, y cuánto se desvían del promedio de los ocho turnos previos.'},
+ {n:'Golpes sísmicos por energía', s:'nbumps · nbumps2 … nbumps89', v:['nbumps','nbumps2','nbumps3','nbumps4','nbumps5','nbumps6','nbumps7','nbumps89'], t:'Cuántos golpes sísmicos hubo en el turno anterior, en total y por rango de energía (de 10² a 10¹⁰ J). Tres columnas valen 0 siempre y las quitamos.'},
+ {n:'Energía de los golpes', s:'energy · maxenergy', v:['energy','maxenergy'], t:'Energía total y energía máxima de los golpes sísmicos del turno anterior. Muy asimétricas: pocos turnos con valores enormes, que son eventos reales.'}
+];
+const USADOS = D.rasgos;
+enter[2] = function(){
+  contar($('#n1'), 2584, 1200, 0); contar($('#n2'), 18, 900, 0); contar($('#n3'), 170, 1100, 0);
+  const cont = $('#grupos'); cont.innerHTML = '';
+  GRUPOS.forEach((g, k) => {
+    const b = document.createElement('button'); b.className = 'grupo' + (k === 3 ? ' sel' : ''); b.setAttribute('role', 'tab');
+    b.innerHTML = '<b>' + g.n + '</b><span>' + g.s + '</span>';
+    b.onclick = () => { $$('.grupo').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); detalle(k); };
+    cont.appendChild(b);
+  });
+  detalle(3);
+};
+function detalle(k){
+  const g = GRUPOS[k];
+  let chips = '';
+  g.v.forEach(v => { chips += '<span class="vchip' + (USADOS.indexOf(v) >= 0 ? ' use' : '') + '">' + v + '</span>'; });
+  $('#detalle').innerHTML = '<h3 style="margin-bottom:14px;font-size:50px">' + g.n + '</h3><p>' + g.t + '</p><div style="margin-top:22px">' + chips + '</div><p style="font-size:22px;color:#8896A5;margin-top:18px"><span class="vchip use" style="font-size:20px;padding:1px 8px">ámbar</span> = lo usa el modelo final</p>';
+}
+
+/* ---------- 4 reto ---------- */
+(function(){
+  const dots = $('#dots'); const pesos = [3,13,27,41,58,72,90]; // posiciones de los ~7 turnos peligrosos de cada 100
+  for (let i = 0; i < 100; i++){ const d = document.createElement('i'); dots.appendChild(d); }
+  const puntos = $$('#dots i');
+  function reset(){ puntos.forEach(p => { p.className = ''; }); $('#acc0').textContent = '93,4%'; $('#det0').textContent = '0'; }
+  enter[3] = function(){
+    reset();
+    puntos.forEach((p, i) => { setTimeout(() => { if (pesos.indexOf(i) >= 0) p.classList.add('p'); }, reducido ? 0 : 18 * i); });
+  };
+  $('#bSiempre').onclick = function(){
+    puntos.forEach((p, i) => { setTimeout(() => { p.classList.remove('p'); p.classList.add(pesos.indexOf(i) >= 0 ? 'mis' : 'ok'); }, reducido ? 0 : 14 * i); });
+    $('#acc0').textContent = '93,4%'; $('#det0').textContent = '0';
+  };
+  $('#bReset').onclick = function(){ reset(); puntos.forEach((p, i) => { if (pesos.indexOf(i) >= 0) p.classList.add('p'); }); };
+})();
+
+/* ---------- 5 EDA ---------- */
+enter[4] = function(){
+  const datos1 = [['Turno de extracción (W)', 9.20, 'am'], ['Turno de preparación (N)', 1.85, ''], ['seismic = b', 9.65, 'am'], ['seismic = a', 4.93, ''], ['ghazard = a', 6.66, ''], ['seismoacoustic = b', 6.90, '']];
+  const datos2 = [['nbumps', .350], ['gpuls', .263], ['genergy', .231], ['shift', .216], ['nbumps2', .196], ['seismic', .135], ['energy', .083]];
+  function barras(cont, filas, max, fmt){
+    cont.innerHTML = '';
+    filas.forEach(f => {
+      const w = document.createElement('div');
+      w.innerHTML = '<div class="barlab"><span>' + f[0] + '</span><b>' + fmt(f[1]) + '</b></div><div class="bar ' + (f[2] || '') + '"><i style="width:0"></i></div>';
+      cont.appendChild(w);
+    });
+    setTimeout(() => { $$('.bar i', cont).forEach((b, i) => { b.style.width = (filas[i][1] / max * 100) + '%'; }); }, reducido ? 0 : 150);
+  }
+  barras($('#eda1'), datos1, 11, v => f3(v, 2) + '%');
+  barras($('#eda2'), datos2, .4, v => f3(v, 3));
+};
+
+/* ---------- 6 preparación ---------- */
+enter[5] = function(){
+  const pasos = $$('#flow .step'); pasos.forEach(p => p.classList.remove('on'));
+  pasos.forEach((p, i) => setTimeout(() => p.classList.add('on'), reducido ? 0 : 450 * (i + 1)));
+  const svg = $('#svgMet'); lim(svg);
+  const filas = D.rasgos_tabla.slice(); // ya ordenadas por F1
+  const x0 = 330, ancho = 600, xmin = 0.15, xmax = 0.40;
+  const X = v => x0 + (v - xmin) / (xmax - xmin) * ancho;
+  [0.2, 0.25, 0.3, 0.35, 0.4].forEach(t => { el('line', {x1:X(t), x2:X(t), y1:10, y2:330, stroke:C.p3, 'stroke-width':1.5}, svg); el('text', {x:X(t), y:352, 'text-anchor':'middle', 'font-size':20, fill:C.mute}, svg, f3(t, 2)); });
+  filas.forEach((f, i) => {
+    const y = 28 + i * 40, elegido = f.Metodo.indexOf('info_mutua') >= 0;
+    const nombre = f.Metodo.replace('SelectKBest ', 'KBest ').replace(' (k=1)', ' (1)').replace(' (k=5)', ' (5)').replace('SFS adelante', 'SFS adelante').replace(' (90% de la importancia)', ' (8)');
+    el('text', {x:x0 - 14, y:y + 7, 'text-anchor':'end', 'font-size':23, fill: elegido ? C.coal : C.slate, 'font-weight': elegido ? 700 : 400}, svg, nombre + ' · ' + f.N_rasgos + ' r.');
+    const g = el('g', {opacity: 0}, svg);
+    el('line', {x1:X(f.F1 - f.F1_std), x2:X(f.F1 + f.F1_std), y1:y, y2:y, stroke: elegido ? C.amber : C.mute, 'stroke-width':6, 'stroke-linecap':'round'}, g);
+    el('circle', {cx:X(f.F1), cy:y, r:9, fill: elegido ? C.coal : C.slate}, g);
+    setTimeout(() => g.setAttribute('opacity', 1), reducido ? 0 : 120 * i + 500);
+  });
+};
+
+/* ---------- 7 heatmap de las 41 combinaciones ---------- */
+const ESTR = ['Sin balanceo', 'class_weight', 'SMOTE', 'Submuestreo'];
+const METS = [['F1', 'F1'], ['Recall', 'Recall'], ['Precision', 'Precisión'], ['ROC_AUC', 'ROC AUC']];
+let metActual = 'F1';
+const modelosOrden = [];
+D.comparacion.forEach(f => { if (modelosOrden.indexOf(f.Modelo) < 0) modelosOrden.push(f.Modelo); });
+const top3 = [];
+D.comparacion.forEach(f => { if (top3.length < 3 && top3.map(t => t.Modelo).indexOf(f.Modelo) < 0) top3.push(f); });
+function celda(modelo, estr){ for (let i = 0; i < D.comparacion.length; i++){ const f = D.comparacion[i]; if (f.Modelo === modelo && f.Estrategia === estr) return f; } return null; }
+function mezcla(t){ const a = [225, 230, 227], b = [46, 122, 155]; return 'rgb(' + a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(',') + ')'; }
+function dibujarHeat(animar){
+  const svg = $('#svgHeat'); lim(svg);
+  const x0 = 270, y0 = 54, cw = 205, ch = 44;
+  let vmin = 9, vmax = 0;
+  D.comparacion.forEach(f => { vmin = Math.min(vmin, f[metActual]); vmax = Math.max(vmax, f[metActual]); });
+  ESTR.forEach((e, j) => el('text', {x:x0 + j * cw + cw / 2, y:38, 'text-anchor':'middle', 'font-size':25, 'font-weight':600, fill:C.coal}, svg, e));
+  modelosOrden.forEach((m, i) => {
+    el('text', {x:x0 - 16, y:y0 + i * ch + ch / 2 + 8, 'text-anchor':'end', 'font-size':25, fill:C.coal}, svg, m);
+    ESTR.forEach((e, j) => {
+      const f = celda(m, e), g = el('g', {opacity: animar && !reducido ? 0 : 1}, svg);
+      const x = x0 + j * cw + 3, y = y0 + i * ch + 3;
+      if (!f){
+        el('rect', {x, y, width:cw - 6, height:ch - 6, rx:5, fill:'none', stroke:C.p3, 'stroke-width':2, 'stroke-dasharray':'6 6'}, g);
+        el('text', {x:x + (cw - 6) / 2, y:y + ch / 2 + 4, 'text-anchor':'middle', 'font-size':24, fill:C.p3}, g, '—');
+      } else {
+        const t = (f[metActual] - vmin) / (vmax - vmin);
+        const r = el('rect', {x, y, width:cw - 6, height:ch - 6, rx:5, fill:mezcla(t)}, g);
+        el('text', {x:x + (cw - 6) / 2, y:y + ch / 2 + 5, 'text-anchor':'middle', 'font-size':25, 'font-weight':600, fill: t > .5 ? '#fff' : C.coal}, g, f3(f[metActual], 2));
+        r.addEventListener('mousemove', ev => verTip(ev, '<b>' + f.Modelo + '</b> · ' + f.Estrategia + '<br>F1 ' + f3(f.F1) + ' ± ' + f3(f.F1_std) + '<br>Recall ' + f3(f.Recall) + ' · Precisión ' + f3(f.Precision) + '<br>ROC AUC ' + f3(f.ROC_AUC) + ' · Accuracy ' + f3(f.Accuracy)));
+        r.addEventListener('mouseleave', ocultarTip);
+        let esTop = false; top3.forEach(t3 => { if (t3.Modelo === m && t3.Estrategia === e) esTop = true; });
+        if (esTop) el('rect', {x:x - 1, y:y - 1, width:cw - 4, height:ch - 4, rx:6, fill:'none', stroke:C.amber, 'stroke-width':5, 'pointer-events':'none'}, g);
+      }
+      if (animar && !reducido) setTimeout(() => g.setAttribute('opacity', 1), 40 * i + 25 * j);
+    });
+  });
+  el('rect', {x:x0, y:y0 + 12 * ch + 8, width:26, height:18, rx:3, fill:'none', stroke:C.amber, 'stroke-width':4}, svg);
+  el('text', {x:x0 + 38, y:y0 + 12 * ch + 23, 'font-size':22, fill:C.mute}, svg, 'las 3 que pasaron al ajuste de hiperparámetros');
+}
+(function(){
+  const cont = $('#metBtns');
+  METS.forEach(m => { const b = document.createElement('button'); b.className = 'btn' + (m[0] === metActual ? ' sel' : ''); b.style.fontSize = '24px'; b.style.padding = '8px 20px'; b.textContent = m[1];
+    b.onclick = () => { metActual = m[0]; $$('#metBtns .btn').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); dibujarHeat(false); };
+    cont.appendChild(b); });
+})();
+enter[6] = function(){
+  metActual = 'F1'; $$('#metBtns .btn').forEach((b, i) => b.classList.toggle('sel', i === 0));
+  dibujarHeat(true);
+  let sin = [], sub = [];
+  D.comparacion.forEach(f => { if (f.Estrategia === 'Sin balanceo') sin.push(f.F1); if (f.Estrategia === 'Submuestreo') sub.push(f.F1); });
+  const prom = a => a.reduce((s, v) => s + v, 0) / a.length;
+  contar($('#f1sin'), prom(sin), 1000, 3); contar($('#f1sub'), prom(sub), 1300, 3);
+};
+
+/* ---------- 8 trampa del accuracy ---------- */
+const COL_ESTR = {'Sin balanceo':C.danger, 'class_weight':C.blue, 'SMOTE':C.slate, 'Submuestreo':C.amber};
+enter[7] = function(){
+  const svg = $('#svgScat'); lim(svg);
+  const m = {l:90, r:30, t:20, b:80}, W = 1130, H = 690, xa = .5, xb = 1.0, ya = 0, yb = .35;
+  const X = v => m.l + (v - xa) / (xb - xa) * (W - m.l - m.r), Y = v => H - m.b - (v - ya) / (yb - ya) * (H - m.t - m.b);
+  [.5, .6, .7, .8, .9, 1.0].forEach(v => { el('line', {x1:X(v), x2:X(v), y1:m.t, y2:H - m.b, stroke:C.p3, 'stroke-width':1.2}, svg); el('text', {x:X(v), y:H - m.b + 32, 'text-anchor':'middle', 'font-size':22, fill:C.mute}, svg, f3(v, 1)); });
+  [0, .1, .2, .3].forEach(v => { el('line', {x1:m.l, x2:W - m.r, y1:Y(v), y2:Y(v), stroke:C.p3, 'stroke-width':1.2}, svg); el('text', {x:m.l - 14, y:Y(v) + 7, 'text-anchor':'end', 'font-size':22, fill:C.mute}, svg, f3(v, 1)); });
+  el('text', {x:(W + m.l) / 2, y:H - 14, 'text-anchor':'middle', 'font-size':25, fill:C.slate}, svg, 'Accuracy');
+  el('text', {x:28, y:(H - m.b + m.t) / 2, 'text-anchor':'middle', 'font-size':25, fill:C.slate, transform:'rotate(-90 28 ' + ((H - m.b + m.t) / 2) + ')'}, svg, 'F1 de la clase peligrosa');
+  const xl = X(0.934);
+  el('line', {x1:xl, x2:xl, y1:m.t, y2:H - m.b, stroke:C.coal, 'stroke-width':3, 'stroke-dasharray':'10 8'}, svg);
+  el('text', {x:xl - 12, y:m.t + 30, 'text-anchor':'end', 'font-size':23, fill:C.coal, 'font-weight':600}, svg, '«siempre sin peligro»');
+  el('text', {x:xl - 12, y:m.t + 56, 'text-anchor':'end', 'font-size':23, fill:C.coal}, svg, 'accuracy 0,934 · F1 0');
+  D.comparacion.forEach((f, i) => {
+    const c = el('circle', {cx:X(f.Accuracy), cy:Y(f.F1), r:0, fill:COL_ESTR[f.Estrategia], 'fill-opacity':.88, stroke:'#fff', 'stroke-width':2}, svg);
+    setTimeout(() => c.setAttribute('r', 12), reducido ? 0 : 25 * i);
+    c.addEventListener('mousemove', ev => verTip(ev, '<b>' + f.Modelo + '</b> · ' + f.Estrategia + '<br>Accuracy ' + f3(f.Accuracy) + '<br>F1 ' + f3(f.F1) + ' · Recall ' + f3(f.Recall)));
+    c.addEventListener('mouseleave', ocultarTip);
+  });
+  let leg = ''; ESTR.forEach(e => { leg += '<div style="display:flex;align-items:center;gap:12px;font-size:27px;margin:6px 0"><span style="width:22px;height:22px;border-radius:50%;background:' + COL_ESTR[e] + ';display:inline-block"></span>' + e + '</div>'; });
+  $('#leg').innerHTML = leg;
+};
+
+/* ---------- 9 calibración ---------- */
+enter[8] = function(){
+  const r1 = $('#rg1'), r2 = $('#rg2'), p = D.prob_cv_resumen;
+  r1.style.width = '0'; r2.style.width = '0';
+  r1.style.left = '49%'; r2.style.left = (p.min * 100) + '%';
+  $('#rg2t').textContent = f3(p.min, 2) + ' a ' + f3(p.max, 2);
+  setTimeout(() => { r1.style.width = '7%'; r2.style.width = ((p.max - p.min) * 100) + '%'; }, reducido ? 0 : 250);
+  const svg = $('#svgCal'); lim(svg);
+  const m = {l:90, r:30, t:20, b:90}, W = 760, H = 680, mx = .3;
+  const X = v => m.l + v / mx * (W - m.l - m.r), Y = v => H - m.b - v / mx * (H - m.t - m.b);
+  [0, .1, .2, .3].forEach(v => {
+    el('line', {x1:X(v), x2:X(v), y1:m.t, y2:H - m.b, stroke:C.p3, 'stroke-width':1.2}, svg);
+    el('line', {x1:m.l, x2:W - m.r, y1:Y(v), y2:Y(v), stroke:C.p3, 'stroke-width':1.2}, svg);
+    el('text', {x:X(v), y:H - m.b + 32, 'text-anchor':'middle', 'font-size':22, fill:C.mute}, svg, pc(v, 0));
+    el('text', {x:m.l - 14, y:Y(v) + 7, 'text-anchor':'end', 'font-size':22, fill:C.mute}, svg, pc(v, 0));
+  });
+  el('text', {x:(W + m.l) / 2, y:H - 22, 'text-anchor':'middle', 'font-size':24, fill:C.slate}, svg, 'Riesgo predicho (promedio del grupo)');
+  el('text', {x:26, y:(H - m.b + m.t) / 2, 'text-anchor':'middle', 'font-size':24, fill:C.slate, transform:'rotate(-90 26 ' + ((H - m.b + m.t) / 2) + ')'}, svg, 'Turnos realmente peligrosos');
+  el('line', {x1:X(0), y1:Y(0), x2:X(mx), y2:Y(mx), stroke:C.mute, 'stroke-width':3, 'stroke-dasharray':'8 8'}, svg);
+  el('text', {x:X(.2), y:Y(.2) + 46, 'text-anchor':'middle', 'font-size':22, fill:C.mute, transform:'rotate(-38 ' + X(.2) + ' ' + (Y(.2) + 46) + ')'}, svg, 'calibración perfecta');
+  let d = ''; D.calibracion.pred.forEach((v, i) => { d += (i ? 'L' : 'M') + X(v) + ' ' + Y(D.calibracion.real[i]); });
+  const linea = el('path', {d, fill:'none', stroke:C.amber, 'stroke-width':6, 'stroke-linejoin':'round'}, svg);
+  const largo = linea.getTotalLength ? linea.getTotalLength() : 1000;
+  if (!reducido){ linea.style.strokeDasharray = largo; linea.style.strokeDashoffset = largo; linea.getBoundingClientRect(); linea.style.transition = 'stroke-dashoffset 1.6s ease'; setTimeout(() => { linea.style.strokeDashoffset = 0; }, 100); }
+  D.calibracion.pred.forEach((v, i) => {
+    const c = el('circle', {cx:X(v), cy:Y(D.calibracion.real[i]), r:10, fill:C.coal, stroke:'#fff', 'stroke-width':2}, svg);
+    c.addEventListener('mousemove', ev => verTip(ev, 'Predicho ' + pc(v) + '<br>Real ' + pc(D.calibracion.real[i])));
+    c.addEventListener('mouseleave', ocultarTip);
+  });
+};
+
+/* ---------- 10 umbral ---------- */
+(function(){
+  const m = {l:70, r:30, t:20, b:60}, W = 1080, H = 560, mx = .6;
+  const X = v => m.l + v / mx * (W - m.l - m.r), Y = v => H - m.b - v * (H - m.t - m.b);
+  const U = D.umbrales.filter(d => d.u <= mx + 1e-9);
+  let marca = null, pF = null, pR = null, pP = null;
+  function trazo(clave, color, ancho){ let d = ''; U.forEach((p, i) => { d += (i ? 'L' : 'M') + X(p.u) + ' ' + Y(p[clave]); }); return el('path', {d, fill:'none', stroke:color, 'stroke-width':ancho, 'stroke-linejoin':'round'}, $('#svgThr')); }
+  function base(){
+    const svg = $('#svgThr'); lim(svg);
+    [0, .2, .4, .6, .8, 1].forEach(v => { el('line', {x1:m.l, x2:W - m.r, y1:Y(v), y2:Y(v), stroke:C.p3, 'stroke-width':1.2}, svg); el('text', {x:m.l - 12, y:Y(v) + 7, 'text-anchor':'end', 'font-size':22, fill:C.mute}, svg, f3(v, 1)); });
+    [0, .1, .2, .3, .4, .5, .6].forEach(v => el('text', {x:X(v), y:H - m.b + 32, 'text-anchor':'middle', 'font-size':22, fill:C.mute}, svg, pc(v, 0)));
+    
+    pP = trazo('precision', C.slate, 5); pR = trazo('recall', C.blue, 5); pF = trazo('f1', C.amber, 8);
+    el('text', {x:X(.42), y:Y(.47), 'text-anchor':'middle', 'font-size':23, fill:C.slate}, svg, 'precisión');
+    el('text', {x:X(.575), y:Y(.62), 'text-anchor':'end', 'font-size':23, fill:C.blue}, svg, 'recall');
+    el('text', {x:X(.3), y:Y(.36), 'text-anchor':'middle', 'font-size':23, fill:C.amberd, 'font-weight':600}, svg, 'F1');
+    const ex = X(D.meta.umbral);
+    el('line', {x1:ex, x2:ex, y1:m.t, y2:H - m.b, stroke:C.amber, 'stroke-width':2, 'stroke-dasharray':'4 6'}, svg);
+    marca = el('g', {}, svg);
+  }
+  function actualizar(){
+    const u = parseInt($('#uSl').value, 10), d = U[u - 1] || U[U.length - 1];
+    $('#uVal').textContent = u + '%';
+    const g = marca; while (g.firstChild) g.removeChild(g.firstChild);
+    el('line', {x1:X(d.u), x2:X(d.u), y1:m.t, y2:H - m.b, stroke:C.coal, 'stroke-width':3}, g);
+    [['f1', C.amber], ['recall', C.blue], ['precision', C.slate]].forEach(p => el('circle', {cx:X(d.u), cy:Y(d[p[0]]), r:10, fill:p[1], stroke:'#fff', 'stroke-width':3}, g));
+    $('#vF1').textContent = f3(d.f1, 2); $('#vRec').textContent = f3(d.recall, 2); $('#vPre').textContent = f3(d.precision, 2);
+    let t;
+    if (d.recall >= .98) t = 'Con un umbral tan bajo casi todos los turnos disparan la alerta: se detectan todos los peligrosos, pero solo ' + pc(d.precision, 0) + ' de las alertas son ciertas.';
+    else if (d.recall < .02) t = 'Con este umbral el modelo casi nunca da la alerta: no sirve.';
+    else t = 'De cada 100 alertas, unas <b>' + Math.round(d.precision * 100) + '</b> son turnos realmente peligrosos, y se detecta el <b>' + Math.round(d.recall * 100) + '%</b> de los turnos peligrosos.';
+    $('#uTxt').innerHTML = t;
+  }
+  enter[9] = function(){ base(); $('#uSl').value = Math.round(D.meta.umbral * 100); actualizar(); };
+  $('#uSl').addEventListener('input', actualizar);
+  $('#uElegido').onclick = function(){ $('#uSl').value = Math.round(D.meta.umbral * 100); actualizar(); };
+})();
+
+/* ---------- 11 test ---------- */
+enter[10] = function(){
+  const svg = $('#svgCm'); lim(svg);
+  const cm = D.confusion_test, ox = 190, oy = 100, cw = 270, ch = 200;
+  el('text', {x:ox + cw / 2, y:50, 'text-anchor':'middle', 'font-size':26, 'font-weight':600, fill:C.coal}, svg, 'El modelo da la alerta');
+  el('text', {x:ox + cw * 1.5, y:50, 'text-anchor':'middle', 'font-size':26, 'font-weight':600, fill:C.coal}, svg, 'No da la alerta');
+  el('text', {x:ox - 18, y:oy + ch / 2 + 9, 'text-anchor':'end', 'font-size':26, 'font-weight':600, fill:C.coal}, svg, 'Peligroso');
+  el('text', {x:ox - 18, y:oy + ch * 1.5 + 9, 'text-anchor':'end', 'font-size':26, 'font-weight':600, fill:C.coal}, svg, 'Sin peligro');
+  el('text', {x:ox - 18, y:oy + ch / 2 + 40, 'text-anchor':'end', 'font-size':20, fill:C.mute}, svg, '(real)');
+  const celdas = [[0, 0, cm.tp, 'detectados', '#CFE7DD', C.ok], [0, 1, cm.fn, 'no detectados', '#F1D3CC', C.danger], [1, 0, cm.fp, 'falsas alarmas', '#F8E3B0', C.amberd], [1, 1, cm.tn, 'bien descartados', C.p2, C.slate]];
+  celdas.forEach((c, i) => {
+    const x = ox + c[1] * cw, y = oy + c[0] * ch;
+    const g = el('g', {opacity: reducido ? 1 : 0}, svg);
+    el('rect', {x:x + 4, y:y + 4, width:cw - 8, height:ch - 8, rx:8, fill:c[4]}, g);
+    const n = el('text', {x:x + cw / 2, y:y + ch / 2 + 14, 'text-anchor':'middle', 'font-size':96, 'font-weight':700, fill:c[5], style:'font-family:var(--titulo)'}, g, '0');
+    el('text', {x:x + cw / 2, y:y + ch / 2 + 58, 'text-anchor':'middle', 'font-size':26, fill:C.slate}, g, c[3]);
+    setTimeout(() => { g.setAttribute('opacity', 1); contar(n, c[2], 1100, 0); }, reducido ? 0 : 300 + i * 350);
+  });
+  const sc = $('#svgCmp'); lim(sc);
+  const grupos = [['F1', 'F1'], ['Recall', 'Recall'], ['Precision', 'Precisión']];
+  const cvm = D.meta.metricas_cv, tm = D.meta.metricas_test, base = 270, alto = 220, xs = 40;
+  grupos.forEach((g, i) => {
+    const gx = xs + i * 270;
+    [[cvm[g[0]], C.blue, 'validación'], [tm[g[0]], C.amber, 'test']].forEach((b, j) => {
+      const h = b[0] / .7 * alto, x = gx + j * 100;
+      const r = el('rect', {x, y:base - (reducido ? h : 0), width:84, height:reducido ? h : 0, rx:4, fill:b[1]}, sc);
+      el('text', {x:x + 42, y:base - h - 12, 'text-anchor':'middle', 'font-size':26, 'font-weight':600, fill:C.coal}, sc, f3(b[0], 2));
+      if (!reducido) setTimeout(() => { r.style.transition = 'all .9s cubic-bezier(.2,.8,.2,1)'; r.setAttribute('y', base - h); r.setAttribute('height', h); }, 500 + i * 150);
+    });
+    el('text', {x:gx + 92, y:base + 34, 'text-anchor':'middle', 'font-size':25, fill:C.coal}, sc, g[1]);
+  });
+  el('rect', {x:620, y:20, width:20, height:20, rx:3, fill:C.blue}, sc); el('text', {x:648, y:37, 'font-size':22, fill:C.slate}, sc, 'validación cruzada');
+  el('rect', {x:620, y:54, width:20, height:20, rx:3, fill:C.amber}, sc); el('text', {x:648, y:71, 'font-size':22, fill:C.slate}, sc, 'test');
+};
+
+/* ---------- 12 simulador ---------- */
+const VARS = [
+  {k:'gpuls', n:'Pulsos del geófono más activo', s:'gpuls', max:4500, paso:10},
+  {k:'nbumps', n:'Golpes sísmicos en el turno', s:'nbumps', max:9, paso:1},
+  {k:'nbumps2', n:'Golpes entre 10² y 10³ J', s:'nbumps2', max:8, paso:1},
+  {k:'nbumps3', n:'Golpes entre 10³ y 10⁴ J', s:'nbumps3', max:7, paso:1},
+  {k:'energy', n:'Energía total de los golpes (J)', s:'energy', max:400000, paso:100, cubica:true}
+];
+const PRESETS = [[180, 0, 0, 0, 0], [700, 2, 1, 1, 3000], [2500, 6, 3, 3, 60000]];
+function sigmoide(z){ return 1 / (1 + Math.exp(z)); }
+function probabilidad(v){
+  let s = 0;
+  D.clasificadores.forEach(c => {
+    let f = c.intercept;
+    for (let i = 0; i < v.length; i++) f += (v[i] * c.scale_[i] + c.min_[i]) * c.coef[i];
+    s += sigmoide(c.a * f + c.b);
+  });
+  return s / D.clasificadores.length;
+}
+(function(){
+  // si el orden de los rasgos del modelo cambia, las variables del simulador se reordenan igual
+  const orden = D.rasgos, cont = $('#sims'); let ranuras = [];
+  orden.forEach(k => { for (let i = 0; i < VARS.length; i++) if (VARS[i].k === k) ranuras.push(VARS[i]); });
+  const entradas = [];
+  ranuras.forEach((v, i) => {
+    const w = document.createElement('div'); w.className = 'sl';
+    w.innerHTML = '<div class="l"><span>' + v.n + '<small>' + v.s + '</small></span><b id="sv' + i + '">0</b></div><input type="range" id="si' + i + '" min="0" max="' + (v.cubica ? 100 : v.max / v.paso) + '" step="1" value="0" aria-label="' + v.n + '">';
+    cont.appendChild(w);
+    entradas.push(w.querySelector('input'));
+  });
+  function valores(){ return entradas.map((inp, i) => { const v = ranuras[i], x = parseInt(inp.value, 10); return v.cubica ? Math.round(v.max * Math.pow(x / 100, 3) / v.paso) * v.paso : x * v.paso; }); }
+  function fijar(vals){
+    vals.forEach((val, i) => { const v = ranuras[i], x = Math.min(val, v.max); entradas[i].value = v.cubica ? Math.round(100 * Math.cbrt(x / v.max)) : Math.round(x / v.paso); });
+  }
+  // Medidor de arco: una pista neutra y un arco de progreso que cambia de color según el riesgo
+  const svg = $('#svgGauge'), cx = 350, cy = 350, R = 280, LARGO = Math.PI * R;
+  const pt = (p, r) => { const a = Math.PI - Math.min(p, .5) / .5 * Math.PI; return [cx + r * Math.cos(a), cy - r * Math.sin(a)]; };
+  const dArco = 'M' + (cx - R) + ' ' + cy + ' A' + R + ' ' + R + ' 0 0 1 ' + (cx + R) + ' ' + cy;
+  el('path', {d:dArco, fill:'none', stroke:'#26303D', 'stroke-width':46}, svg);
+  const progreso = el('path', {d:dArco, fill:'none', stroke:'#2E7A9B', 'stroke-width':46, style:'transition:stroke-dasharray .7s cubic-bezier(.2,.8,.2,1),stroke .4s'}, svg);
+  progreso.setAttribute('stroke-dasharray', '0 ' + LARGO);
+  [[0, '0%'], [D.meta.umbral, '10%'], [.25, '25%'], [.5, '50%+']].forEach(t => {
+    const q = pt(t[0], R + 46), a1 = pt(t[0], R - 30), a2 = pt(t[0], R + 26);
+    if (t[0] > 0 && t[0] < .5) el('line', {x1:a1[0], y1:a1[1], x2:a2[0], y2:a2[1], stroke:'#E9EDF0', 'stroke-width':3}, svg);
+    el('text', {x:q[0], y:q[1] + 6, 'text-anchor':'middle', 'font-size':22, fill:'#8896A5'}, svg, t[1]);
+  });
+  const b1 = pt(.066, R - 34), b2 = pt(.066, R + 24); el('line', {x1:b1[0], y1:b1[1], x2:b2[0], y2:b2[1], stroke:'#8896A5', 'stroke-width':3, 'stroke-dasharray':'3 4'}, svg);
+  const valorTxt = el('text', {x:cx, y:cy - 36, 'text-anchor':'middle', 'font-size':150, 'font-weight':700, fill:'#E9EDF0', style:'font-family:var(--titulo)'}, svg, '0%');
+  el('text', {x:cx, y:cy + 16, 'text-anchor':'middle', 'font-size':25, fill:'#8896A5'}, svg, 'riesgo estimado en el siguiente turno');
+  function recalcular(){
+    const vals = valores(), p = probabilidad(vals);
+    entradas.forEach((inp, i) => { $('#sv' + i).textContent = miles(vals[i]); });
+    progreso.setAttribute('stroke-dasharray', (LARGO * Math.min(p, .5) / .5) + ' ' + LARGO);
+    progreso.style.stroke = p >= .25 ? '#C4432B' : (p >= D.meta.umbral ? '#F2A900' : '#2E7A9B');
+    valorTxt.textContent = (p * 100).toFixed(1).replace('.', ',') + '%';
+    const alerta = p >= D.meta.umbral, v = $('#veredicto');
+    v.textContent = alerta ? '⚠ Turno peligroso' : '✓ Sin peligro previsto';
+    v.style.color = alerta ? '#F2A900' : '#7FD3B0';
+    $('#vTexto').textContent = 'El modelo da la alerta desde ' + pc(D.meta.umbral, 0) + '. Riesgo normal en los datos: 6,6%.';
+  }
+  entradas.forEach(inp => inp.addEventListener('input', () => { $('#realTxt').textContent = ''; recalcular(); }));
+  $$('#s12 [data-pre]').forEach(b => b.onclick = () => { $('#realTxt').textContent = ''; const p = PRESETS[parseInt(b.dataset.pre, 10)], mapa = {gpuls:p[0], nbumps:p[1], nbumps2:p[2], nbumps3:p[3], energy:p[4]}; fijar(orden.map(k => mapa[k])); recalcular(); });
+  $('#bReal').onclick = function(){
+    const t = D.turnos[Math.floor(Math.random() * D.turnos.length)], mapa = {gpuls:t[0], nbumps:t[1], nbumps2:t[2], nbumps3:t[3], energy:t[4]};
+    fijar(orden.map(k => mapa[k])); recalcular();
+    $('#realTxt').innerHTML = t[5] === 1 ? '<b style="color:#F2A900">Valor real:</b> en el turno siguiente sí hubo un evento de alta energía.' : '<b style="color:#7FD3B0">Valor real:</b> en el turno siguiente no hubo evento de alta energía.';
+  };
+  const moderado = {gpuls:700, nbumps:2, nbumps2:1, nbumps3:1, energy:3000};
+  enter[11] = function(){ fijar(orden.map(k => moderado[k])); $('#realTxt').textContent = ''; recalcular(); };
+})();
+
+/* ---------- 14 cierre ---------- */
+enter[13] = function(){
+  const svg = $('#svgFin'); lim(svg);
+  let sem = 7, d = '';
+  const azar = () => { sem = (sem * 16807) % 2147483647; return sem / 2147483647; };
+  for (let x = 0; x <= 1920; x += 6){
+    let y = 130 + Math.sin(x * .05) * 8 + (azar() - .5) * 14;
+    const c = x - 1300; if (c > 0 && c < 260) y += Math.sin(c * .35) * 105 * Math.exp(-c / 70);
+    d += (x ? 'L' : 'M') + x + ' ' + y.toFixed(1);
+  }
+  const p = el('path', {d, fill:'none', stroke:'#F2A900', 'stroke-width':3, 'stroke-linejoin':'round'}, svg);
+  if (!reducido){ const L = p.getTotalLength(); p.style.strokeDasharray = L; p.style.strokeDashoffset = L; p.getBoundingClientRect(); p.style.transition = 'stroke-dashoffset 3s ease'; setTimeout(() => { p.style.strokeDashoffset = 0; }, 80); }
+};
+
+/* ---------- arranque ---------- */
+const inicial = parseInt((location.hash || '#1').slice(1), 10);
+irA(isNaN(inicial) ? 0 : inicial - 1);
+if (inicial > 1) mostrarTodos(slides[actual]);
+
+})();
+</script>
+</body>
+</html>

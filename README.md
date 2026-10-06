@@ -124,7 +124,7 @@ flowchart LR
 
     subgraph NB4["04 · Ajuste y exportación"]
         GS["GridSearchCV\ntop 3 combinaciones"]
-        UMB["Umbral de decisión"]
+        UMB["Calibración de probabilidades\numbral de decisión"]
         TEST["Evaluación única\nen el set de prueba"]
     end
 
@@ -144,7 +144,7 @@ flowchart LR
 | `01_EDA_Limpieza.ipynb` | Carga el ARFF, revisa cada variable y la clase, quita duplicados y columnas constantes, codifica las categóricas y separa train/test | `train.csv`, `test.csv`, `test_original.csv`, `mapeos_categoricas.joblib` |
 | `02_Escalado_PCA_Seleccion.ipynb` | Compara escaladores, aplica PCA y compara seis métodos de selección de rasgos | `decisiones_preprocesamiento.joblib`, `comparacion_rasgos.csv` |
 | `03_Balanceo_Comparacion_Modelos.ipynb` | Evalúa los 12 modelos con cada estrategia de balanceo usando validación cruzada | `comparacion_modelos.csv` |
-| `04_Ajuste_Evaluacion_Exportacion.ipynb` | Ajusta los 3 mejores con GridSearchCV, elige el umbral, evalúa una sola vez en test y exporta | `modelo_final.joblib`, `metadata_modelo.json`, `ajuste_hiperparametros.csv` |
+| `04_Ajuste_Evaluacion_Exportacion.ipynb` | Ajusta los 3 mejores con GridSearchCV, calibra las probabilidades, elige el umbral, evalúa en test y exporta | `modelo_final.joblib`, `metadata_modelo.json`, `ajuste_hiperparametros.csv` |
 | `app.py` | Publica el modelo en una app web | — |
 
 ## Modelos y estrategias de balanceo
@@ -179,6 +179,11 @@ prediccion-sismica-minas/
 │   └── metadata_modelo.json               # Notebook 04 (métricas, umbral, fecha)
 ├── resultados/                            # Tablas comparativas en CSV
 ├── figuras/                               # Gráficas para el informe y la presentación
+├── informe/
+│   ├── informe.html                       # Fuente del informe final (se imprime a PDF desde el navegador)
+│   └── Informe_Final.pdf                  # Informe final
+├── presentacion/
+│   └── presentacion.html                  # Presentación interactiva (se abre en el navegador, sin servidor)
 ├── referencia/                            # Notebooks de clase usados como guía de estilo
 ├── 01_EDA_Limpieza.ipynb
 ├── 02_Escalado_PCA_Seleccion.ipynb
@@ -216,8 +221,10 @@ prediccion-sismica-minas/
 - **Codificación ordinal de las evaluaciones de peligro.** `seismic`, `seismoacoustic` y `ghazard` van de "sin peligro" a "estado de peligro" (a < b < c < d), así que se codifican como 0 < 1 < 2 < 3 para conservar ese orden. El mismo diccionario se usa en los notebooks y en la app.
 - **Valores extremos conservados.** Las energías muy altas son eventos reales y justo lo que queremos anticipar. Quitarlas eliminaría la señal.
 - **Columnas constantes eliminadas.** `nbumps6`, `nbumps7` y `nbumps89` valen cero en todos los turnos y no aportan información.
-- **Set de prueba intocable.** El 20% de prueba se separa una vez en el notebook 01 y se usa una sola vez al final del notebook 04. Toda la selección de modelos, hiperparámetros y umbral se hace con validación cruzada sobre el 80% de entrenamiento.
+- **Set de prueba reservado.** El 20% de prueba se separa una vez en el notebook 01 y solo se usa al final del notebook 04. Toda la selección de modelos, hiperparámetros y umbral se hace con validación cruzada sobre el 80% de entrenamiento (con la salvedad explicada en la nota de transparencia de Resultados).
+- **Calibración de probabilidades.** Como el submuestreo entrena con la mitad de turnos peligrosos, las probabilidades del modelo salen infladas o comprimidas. Se calibran con `CalibratedClassifierCV` (sigmoide) para que la app pueda mostrar un riesgo interpretable. Los hiperparámetros se ajustan con la precisión promedio, que no depende del umbral.
 - **Umbral de decisión ajustado.** En vez de usar 0,5 por defecto, el umbral que mejor equilibra F1 se elige con predicciones de validación cruzada sobre train, nunca con test.
+- **Pocos rasgos.** La selección de rasgos dejó 5 de los 15 disponibles. Con la regla original del plan quedaba uno solo (`nbumps`), así que se pidió un mínimo de 3 rasgos y que el selector estuviera dentro del pipeline.
 
 ## Puesta en marcha en local (recomendado)
 
@@ -264,7 +271,7 @@ Verifica que la primera celda de cada notebook tenga `EN_COLAB = False` y ejecut
 01_EDA_Limpieza → 02_Escalado_PCA_Seleccion → 03_Balanceo_Comparacion_Modelos → 04_Ajuste_Evaluacion_Exportacion
 ```
 
-El notebook 03 evalúa 41 combinaciones de modelo y balanceo con validación cruzada, así que tarda varios minutos.
+El notebook 03 evalúa 41 combinaciones de modelo y balanceo con validación cruzada y el 02 incluye selección de rasgos con SFS y SHAP, así que cada uno tarda unos minutos.
 
 También se pueden ejecutar desde la terminal:
 
@@ -292,9 +299,9 @@ La app se abre en `http://127.0.0.1:7860` y tiene tres pestañas:
 
 | Pestaña | Qué hace |
 | :--- | :--- |
-| **Evaluar un turno** | Formulario con las variables del turno. Muestra si el siguiente turno sería peligroso y con qué probabilidad. Con el botón **Cargar un turno real al azar** se llena con un turno del set de prueba y se ve también el valor real |
-| **Subir un CSV** | Recibe un archivo con las columnas originales del dataset y devuelve la probabilidad y el veredicto de cada turno |
-| **Sobre el modelo** | Modelo elegido, estrategia de balanceo, umbral y métricas de validación cruzada y de prueba |
+| **Evaluar un turno** | Formulario con los rasgos que usa el modelo (el formulario se arma solo a partir de `metadata_modelo.json`). Muestra si el siguiente turno sería peligroso, el riesgo estimado en % y el umbral. Con el botón **Cargar un turno real al azar** se llena con un turno del set de prueba y se ve también el valor real |
+| **Subir un CSV** | Recibe un archivo con las columnas originales del dataset (basta con las que usa el modelo) y devuelve la probabilidad y el veredicto de cada turno |
+| **Sobre el modelo** | Modelo elegido, estrategia de balanceo, calibración, umbral y métricas de validación cruzada y de prueba |
 
 En Colab, cambia `EN_COLAB = True` dentro de `app.py` y ejecuta `%run app.py` desde la carpeta del proyecto. Gradio genera un enlace público temporal (`*.gradio.live`).
 
@@ -302,18 +309,30 @@ En Colab, cambia `EN_COLAB = True` dentro de `app.py` y ejecuta `%run app.py` de
 
 ## Resultados
 
-> 🚧 **Pendiente.** Esta sección se completa al terminar el notebook 04.
+**Preprocesamiento elegido:** `MinMaxScaler`, sin PCA (no mejoró el F1) y 5 rasgos (`gpuls`, `nbumps`, `nbumps2`, `nbumps3` y `energy`), escogidos con información mutua dentro del pipeline.
+
+**Modelo final:** SVM lineal con submuestreo aleatorio y calibración sigmoide de las probabilidades (`C=0,1`), con umbral de decisión de 0,10.
 
 | Métrica | Validación cruzada (train) | Set de prueba |
 | :--- | :--- | :--- |
-| Modelo final | _pendiente_ | — |
-| Estrategia de balanceo | _pendiente_ | — |
-| Umbral de decisión | _pendiente_ | — |
-| F1 clase peligrosa | _pendiente_ | _pendiente_ |
-| Recall clase peligrosa | _pendiente_ | _pendiente_ |
-| Precisión clase peligrosa | _pendiente_ | _pendiente_ |
-| ROC AUC | _pendiente_ | _pendiente_ |
-| Accuracy | _pendiente_ | _pendiente_ |
+| F1 clase peligrosa | 0,333 | 0,299 |
+| Recall clase peligrosa | 0,537 | 0,471 |
+| Precisión clase peligrosa | 0,242 | 0,219 |
+| ROC AUC | 0,777 | 0,744 |
+| Precisión promedio | 0,206 | 0,192 |
+| Brier (referencia: 0,0616) | 0,058 | 0,059 |
+| Accuracy | 0,858 | 0,855 |
+
+En el set de prueba el modelo detecta **16 de los 34 turnos peligrosos** y da 57 falsas alarmas entre 482 turnos sin peligro. Un modelo que siempre diga "sin peligro" saca 0,934 de accuracy pero no detecta ninguno (F1 = 0). Sin balancear, los 12 modelos tienen un F1 promedio de 0,090; con balanceo sube a entre 0,234 y 0,250.
+
+Es un problema difícil y el modelo sirve como alerta que ordena los turnos por riesgo, no como un sistema que dé certeza. Las probabilidades están calibradas (en test, la probabilidad media predicha fue 0,067 y la proporción real de turnos peligrosos 0,066), pero ni siquiera el grupo de mayor riesgo pasa de más o menos una de cada cuatro alertas ciertas.
+
+> **Nota de transparencia.** La primera versión del notebook 04 (regresión logística ajustada con F1, F1 en test de 0,296) producía probabilidades pegadas a 0,5 que no servían para la app. La descartamos y la reemplazamos por esta, con ajuste por precisión promedio y calibración. Ese problema lo detectamos con datos de entrenamiento, pero el test de la primera versión ya se había visto, así que el test no es completamente virgen. Todo está explicado en el notebook 04.
+
+## Informe y presentación
+
+- **Informe final:** [`informe/Informe_Final.pdf`](informe/Informe_Final.pdf) (22 páginas). Su fuente es `informe/informe.html`; para regenerar el PDF basta con abrirlo en un navegador basado en Chromium e imprimir a PDF en tamaño A4 sin encabezados.
+- **Presentación:** abre `presentacion/presentacion.html` en el navegador. Flechas o espacio para avanzar, `O` para la vista general, `N` para las notas del orador, `T` para el cronómetro y `F` para pantalla completa. Incluye gráficas interactivas con los resultados reales (mapa de las 41 combinaciones, deslizador del umbral) y un simulador que reproduce el modelo final sin servidor.
 
 ## Trabajo con agentes de IA
 
@@ -347,7 +366,7 @@ El equipo trabaja con Claude Code, Codex y Antigravity. Para que todos sigan las
 
 - Validación respetando el orden temporal de los turnos, si se consiguen los datos con fecha.
 - Ingeniería de rasgos sobre la historia de varios turnos (tendencias de energía y pulsos).
-- Calibración de probabilidades para que el porcentaje que muestra la app sea más confiable.
+- Validación cruzada anidada para que el ajuste de hiperparámetros y del umbral no sea optimista.
 - Costos asimétricos: penalizar más una alerta perdida que una falsa alarma.
 - Despliegue permanente de la app en Hugging Face Spaces.
 
