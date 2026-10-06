@@ -1,49 +1,120 @@
-# Plan de implementación — Localización WiFi indoor (UJIIndoorLoc)
+# Plan de implementación — Predicción de peligro sísmico en minas de carbón
 
-Oct 1, 2026 · @Juan Jose
+5 de octubre de 2026 · Juan José Jaramillo
 
 ## 1. Resumen y decisiones tomadas
 
-Vamos a predecir en qué **edificio y piso** está un celular a partir de la intensidad de 520 señales WiFi, como un problema de clasificación de 13 clases, y lo vamos a mostrar en una app Gradio.
+Vamos a predecir si en el siguiente turno de trabajo (8 horas) de una mina de carbón habrá un evento sísmico de alta energía (más de 10⁴ J), usando las mediciones del turno anterior. Es una clasificación binaria con un desbalance fuerte, y el mejor modelo se publica en una app Gradio.
 
-**Dataset:** UJIIndoorLoc ([UCI, id 310](https://archive.ics.uci.edu/dataset/310/ujiindoorloc)). Trae dos archivos: `trainingData.csv` (\~19.937 filas) y `validationData.csv` (\~1.111 filas), con 529 columnas.
+**Dataset:** seismic-bumps ([UCI, id 266](https://archive.ics.uci.edu/dataset/266/seismic+bumps)), de Marek Sikora y Łukasz Wróbel. Son datos de dos tajos largos de una mina de carbón en Polonia. El archivo oficial es `seismic-bumps.arff`: según UCI tiene 2.584 filas, 18 variables de entrada y la columna `class`. Hay una copia en CSV (datahub) con 2.578 filas que sirve para explorar, pero el proyecto trabaja con el ARFF oficial.
 
-**Variable objetivo:** `BF`, una etiqueta nueva que combina `BUILDINGID` y `FLOOR`, por ejemplo `B0_P2`. Según el artículo original, los edificios 0 y 1 tienen 4 pisos (0 a 3) y el edificio 2 tiene 5 (0 a 4), así que esperamos 13 clases. Esto se confirma en el EDA, no se da por hecho.
+**Variable objetivo:** `class`. Vale 1 si el turno es peligroso (hubo un evento de alta energía en el turno siguiente) y 0 si no. Solo 170 filas son de clase 1, cerca del 6,6%.
 
-**Decisiones ya tomadas:**
+**Lo que ya sabemos de los datos** (revisado en la copia CSV; se confirma en el EDA con el ARFF):
 
-- Se trabaja en Colab o en local con Claude Code; el mismo código sirve para ambos cambiando una sola variable de ruta.
-- Se usan **tres notebooks** más un archivo `app.py` (ver sección 2). Así cada integrante puede avanzar en paralelo y cada notebook se parece a uno de los de clase.
-- `trainingData.csv` se usa para entrenar y para validación cruzada. `validationData.csv` se usa **una sola vez**, al final, como prueba. Se tomó meses después y con otros usuarios, así que mide si el modelo generaliza de verdad.
-- La publicación es una **app Gradio**. Se elige Gradio y no Streamlit porque corre dentro de Colab con un enlace público (`share=True`) y en local con uv run `python app.py`, sin cambiar nada.
-- Entregables: notebooks, app, informe y presentación.
+- No hay nulos.
+- Hay 4 variables categóricas: `seismic` (a, b), `seismoacoustic` (a, b, c), `shift` (W, N) y `ghazard` (a, b, c).
+- `nbumps6`, `nbumps7` y `nbumps89` valen 0 en todas las filas.
+- Las variables de energía (`genergy`, `energy`, `maxenergy`) son muy asimétricas y tienen valores extremos.
+- En una prueba rápida con la copia CSV, el F1 de la clase peligrosa quedó entre 0,14 y 0,26. Es un problema difícil, y eso se analiza en el informe, no se esconde.
 
-**Estilo:** todo el código sigue los notebooks de la profesora (función `fit_and_eval`, `Pipeline`, `StratifiedKFold`, `GridSearchCV`, tabla de resultados con `rows`). Nada de list comprehensions ni construcciones avanzadas; ciclos `for` simples. Los markdown se escriben en voz grupal ("probamos", "notamos").
+**Decisiones tomadas:**
 
-## 2. Estructura del proyecto y entorno
+- **Solo clasificación.** Se comparan los **12 modelos vistos en clase** (8 individuales y 4 ensambles) con **4 estrategias de balanceo**: sin balanceo, `class_weight`, SMOTE y submuestreo aleatorio. Son 41 combinaciones, porque `class_weight` solo aplica a 5 de los modelos.
+- **Métrica principal: F1 de la clase peligrosa** (`scoring="f1"`, igual que en el notebook de selección de rasgos de clase). El accuracy se reporta, pero nunca decide nada: un modelo que diga siempre "sin peligro" saca cerca del 93%.
+- **Partición** única 80/20 estratificada, con `random_state=42`. El 20% de prueba (~34 turnos peligrosos) se usa **una sola vez**, en el notebook 04.
+- **Validación cruzada:** `StratifiedKFold` de **10 particiones**, como en clase.
+- **Cuatro notebooks**, cada uno con una sola responsabilidad, más `app.py`:
+  - 01: carga, EDA, limpieza, codificación y partición.
+  - 02: escalado, PCA y selección de rasgos.
+  - 03: balanceo y comparación de los 12 modelos.
+  - 04: ajuste, evaluación final y exportación.
+- **Manda el estilo de la profesora.** Todo el código vive en los notebooks y sigue el orden de clase. Lo que tenga una única responsabilidad se vuelve función con docstring. No hay carpeta `src/`.
+- **Publicación:** app Gradio con un formulario para ingresar los datos de un turno.
+- **Entregables:** notebooks, app, informe y presentación.
+- **Repositorio en GitHub** con `README.md`, `AGENTS.md`, `CLAUDE.md` y `ESTADO.md`, para que todo el equipo (Claude Code, Codex y Antigravity) trabaje con las mismas reglas y sepa en qué va el proyecto.
 
-El proyecto vive en el repositorio de GitHub `localizacion-wifi-indoor` y el entorno local se administra con **uv** (`pyproject.toml` + `uv.lock`), igual que en el trabajo de Waze; en Colab se usa una copia de la carpeta en Drive.
+## 2. Estilo, buenas prácticas y comentarios
 
+Prima el estilo de la profesora. Las buenas prácticas se aplican sin salirse de él. Estas mismas reglas están en `AGENTS.md`, que es la fuente que leen los agentes.
+
+**Orden de cada notebook:** título → configuración → importaciones → carga → análisis → proceso → resultados → conclusiones. Se reutilizan los nombres y patrones de clase: `X_train`, `y_train`, `X_test`, `y_test`, `rows` para acumular resultados, `pd.DataFrame(rows)` para la tabla, `Pipeline`, `StratifiedKFold`, `GridSearchCV`, `ConfusionMatrixDisplay`, `classification_report` y `joblib`.
+
+**Una responsabilidad por función:**
+
+- Si un bloque hace una sola cosa y se usa más de una vez, se vuelve función: cargar el ARFF, codificar las categóricas, crear un escalador, crear un pipeline, evaluar con validación cruzada, graficar.
+- Cada función recibe por parámetros lo que necesita y devuelve un resultado. No imprime y calcula a la vez, ni modifica variables globales.
+- El catálogo de modelos es una función `crear_modelos()` que devuelve una lista. Agregar un modelo es agregar una línea, sin tocar el ciclo que evalúa.
+- La función de evaluación recibe el pipeline y no le importa qué modelo trae adentro.
+- Las funciones que se repiten entre notebooks (`evaluar_cv`, `crear_escalador`, `crear_pipeline`, `crear_modelos`, `codificar_categoricas`) se copian **idénticas**. Si una cambia, se cambia en todos lados y se anota en `ESTADO.md`.
+
+**Lo que no se usa (nivel del curso):** list y dict comprehensions, generadores, `lambda`, clases propias, decoradores, `*args` y `**kwargs` en los notebooks. Se usan ciclos `for` simples y nombres claros en español. La única excepción es `*valores` en `app.py`, porque Gradio entrega así los campos del formulario, y queda comentada.
+
+**Otras reglas:**
+
+- `random_state=42` en todo.
+- Las rutas se definen solo en la celda de configuración.
+- Nada de números mágicos sin explicar.
+- Cada gráfica se guarda en `figuras/` con un nombre que diga qué muestra, por ejemplo `03_heatmap_f1.png`.
+
+**Comentarios y markdown.** La meta es que quien clone el repositorio entienda cada parte sin preguntarle a nadie.
+
+- Cada función lleva un docstring en español: qué hace, qué recibe, qué devuelve y, si no es obvio, por qué existe.
+- Los comentarios explican el porqué, no repiten el código. Mal: `# recorremos las columnas`. Bien: `# usamos el mismo diccionario en los notebooks y en la app, así una 'b' siempre vale 1`.
+- El tono es humanizado y en voz grupal ("aquí quitamos…", "lo dejamos así porque…", "notamos que…"), como lo escribirían estudiantes.
+- Antes de cada bloque de código va una celda markdown corta que dice qué vamos a hacer y para qué. Después de cada resultado importante va otra con lo que notamos, usando los números que **sí** salieron.
+- Nada de tablas en las celdas markdown: los resultados se cuentan en prosa. Las tablas de resultados van como DataFrame en el código.
+
+Ejemplo del nivel esperado:
+
+```python
+def codificar_categoricas(df, mapeos):
+    """
+    Cambia las letras de las columnas categóricas por números usando el diccionario `mapeos`.
+    Recibe un DataFrame con las columnas originales (por ejemplo seismic = 'a' o 'b') y devuelve
+    una copia con esas columnas ya numéricas. No modifica el DataFrame que recibe.
+    """
+    df_codificado = df.copy()
+    for columna in mapeos:
+        # Si la columna no está (por ejemplo, porque la quitamos en la selección de rasgos), la saltamos
+        if columna in df_codificado.columns:
+            # Usamos el mismo diccionario en los notebooks y en la app, así una 'b' siempre vale 1
+            df_codificado[columna] = df_codificado[columna].map(mapeos[columna])
+    return df_codificado
 ```
-localizacion-wifi-indoor/
-├── data/                         # no se sube a GitHub (excepto ejemplo_app.csv)
-│   ├── trainingData.csv          # original, no se modifica
-│   ├── validationData.csv        # original, no se modifica
-│   ├── train_procesado.csv       # sale del notebook 01
-│   ├── test_procesado.csv        # sale del notebook 01
-│   └── ejemplo_app.csv           # sale del notebook 03, para probar la app
-├── models/                       # no se sube a GitHub
-│   ├── modelo_final.joblib       # sale del notebook 03
-│   ├── label_encoder.joblib      # sale del notebook 01
-│   └── rasgos_usados.joblib      # sale del notebook 02
-├── figuras/                      # gráficas para informe y presentación
-├── referencia/                   # notebooks de clase, para imitar el estilo
-├── 01_EDA_Preprocesamiento.ipynb
-├── 02_PCA_Seleccion_Rasgos.ipynb
-├── 03_Modelos_Evaluacion.ipynb
+
+## 3. Estructura del repositorio y entorno
+
+Se conserva la base que ya teníamos (uv, Colab, GitHub, Claude Code); cambian el dataset, los nombres y la carpeta `resultados/`. Nombre propuesto para el repositorio: `prediccion-sismica-minas`. Si ya lo crearon con el nombre de WiFi, se puede renombrar en GitHub en **Settings → General**. En Drive la carpeta se llama `Proyecto_Sismos`.
+
+```text
+prediccion-sismica-minas/
+├── data/
+│   ├── seismic-bumps.arff                 # original de UCI, no se modifica (el que usan los notebooks)
+│   ├── seismic-bumps.csv                  # copia de datahub (2.578 filas), solo de referencia; no se usa
+│   ├── train.csv                          # notebook 01 (ya codificado)
+│   ├── test.csv                           # notebook 01 (ya codificado)
+│   └── test_original.csv                  # notebook 01 (con las letras originales, para la app)
+├── models/
+│   ├── mapeos_categoricas.joblib          # notebook 01
+│   ├── decisiones_preprocesamiento.joblib # notebook 02 (escalador y rasgos)
+│   ├── modelo_final.joblib                # notebook 04
+│   └── metadata_modelo.json               # notebook 04 (modelo, umbral, métricas, fecha)
+├── resultados/
+│   ├── comparacion_rasgos.csv             # notebook 02
+│   ├── comparacion_modelos.csv            # notebook 03
+│   └── ajuste_hiperparametros.csv         # notebook 04
+├── figuras/                               # todas las gráficas
+├── referencia/                            # los 6 notebooks de clase (no se modifican)
+├── 01_EDA_Limpieza.ipynb
+├── 02_Escalado_PCA_Seleccion.ipynb
+├── 03_Balanceo_Comparacion_Modelos.ipynb
+├── 04_Ajuste_Evaluacion_Exportacion.ipynb
 ├── app.py
-├── PLAN.md                       # este plan exportado a Markdown
-├── CLAUDE.md                     # instrucciones para Claude Code (sección 8)
+├── AGENTS.md          # reglas para personas y agentes (fuente única)
+├── CLAUDE.md          # importa AGENTS.md para Claude Code
+├── ESTADO.md          # avance, decisiones y bitácora
+├── PLAN.md            # este plan
 ├── README.md
 ├── pyproject.toml
 ├── uv.lock
@@ -51,738 +122,651 @@ localizacion-wifi-indoor/
 └── .gitignore
 ```
 
-Los CSV y los `.joblib` están en `.gitignore` por tamaño: cada integrante descarga el dataset de UCI y corre los notebooks. Si el grupo decide subir el modelo final, se quita `models/*.joblib` del `.gitignore` (límite de GitHub: 100 MB por archivo).
+El dataset pesa unos 140 KB y los modelos son pequeños, así que **`data/`, `models/`, `resultados/` y `figuras/` sí se suben a Git**. Así, quien clone el repositorio puede abrir la app sin reentrenar nada. En el `.gitignore` solo quedan `.venv/`, los checkpoints de Jupyter y archivos del sistema.
 
 ### Celda de configuración (primera celda de cada notebook)
 
-Es la única parte que cambia entre Colab y local. En Drive la carpeta se llama `Proyecto_UJIIndoorLoc`.
+Es la única parte que cambia entre Colab y local:
 
 ```python
-EN_COLAB = True   # poner False cuando se corra en local
+# Si corremos en Google Colab ponemos True; en el computador (VS Code), False
+EN_COLAB = False
 
 if EN_COLAB:
+    # En Colab los archivos viven en Drive, así que primero lo montamos
     from google.colab import drive
     drive.mount('/content/drive')
-    RUTA_BASE = '/content/drive/MyDrive/Proyecto_UJIIndoorLoc/'
+    RUTA_BASE = '/content/drive/MyDrive/Proyecto_Sismos/'
 else:
     RUTA_BASE = './'
 
+# Todas las rutas del notebook salen de aquí, para no tener rutas regadas por el código
 RUTA_DATOS = RUTA_BASE + 'data/'
 RUTA_MODELOS = RUTA_BASE + 'models/'
+RUTA_RESULTADOS = RUTA_BASE + 'resultados/'
 RUTA_FIGURAS = RUTA_BASE + 'figuras/'
 ```
 
 ### Librerías
 
-Se agregan con uv y quedan registradas en `pyproject.toml` y `uv.lock`: pandas, numpy, matplotlib, seaborn, scikit-learn, phik, shap, joblib, gradio, ipykernel y nbconvert (este último para que Claude Code pueda ejecutar los notebooks desde la terminal).
+Se agregan con uv y quedan en `pyproject.toml` y `uv.lock`:
 
-En Colab ya vienen casi todas. Solo hay que instalar al inicio: `!pip install phik shap gradio -q`.
+- pandas, numpy, scipy (lee el ARFF);
+- matplotlib, seaborn, phik;
+- scikit-learn, **imbalanced-learn** (SMOTE, submuestreo y el `Pipeline` que los soporta);
+- shap, joblib, gradio;
+- ipykernel y nbconvert, para que los agentes puedan ejecutar los notebooks desde la terminal.
 
-### Creación del proyecto (solo lo hace una persona, una vez)
+En Colab hay que instalar al inicio: `!pip install phik shap gradio imbalanced-learn -q`.
 
-En PowerShell:
+### Creación del proyecto (solo una persona, una vez)
 
 ```powershell
-mkdir localizacion-wifi-indoor
-cd localizacion-wifi-indoor
+mkdir prediccion-sismica-minas
+cd prediccion-sismica-minas
 
 uv init --bare --python 3.11
 uv python pin 3.11
-uv add pandas numpy matplotlib seaborn scikit-learn phik shap joblib gradio ipykernel nbconvert
+uv add pandas numpy scipy matplotlib seaborn phik scikit-learn imbalanced-learn shap joblib gradio ipykernel nbconvert
 
-mkdir data, models, figuras, referencia
-New-Item models\.gitkeep, figuras\.gitkeep, data\.gitkeep -ItemType File
+mkdir data, models, resultados, figuras, referencia
+New-Item models\.gitkeep, resultados\.gitkeep, figuras\.gitkeep -ItemType File
 ```
 
-Luego se copian `README.md`, `.gitignore`, `PLAN.md`, `CLAUDE.md` y los notebooks de clase en `referencia/`, y se hace el primer push.
+Después:
 
-### Instalación para el resto del grupo (Windows 11, PowerShell, VS Code)
+1. Descargar el `.zip` oficial de UCI (botón **Download**) y copiar `seismic-bumps.arff` en `data/`.
+2. Copiar los 6 notebooks de clase en `referencia/`.
+3. Poner en la raíz `AGENTS.md`, `CLAUDE.md`, `ESTADO.md`, `README.md`, `.gitignore` y este `PLAN.md`.
+4. Hacer el primer push.
 
-1. Instalar uv: `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`, cerrar y abrir la terminal, y verificar con `uv --version`.
-2. Clonar el repositorio y entrar a la carpeta.
-3. Correr `uv sync`. Crea `.venv` con Python 3.11 e instala exactamente las versiones de `uv.lock`.
-4. Descargar el dataset de UCI y copiar los dos CSV en `data/`.
-5. En VS Code, abrir el notebook y elegir el kernel `.venv\Scripts\python.exe`.
-6. Poner `EN_COLAB = False` en la celda de configuración.
+### Instalación para el resto del grupo
 
-Para agregar una librería nueva se usa `uv add nombre-del-paquete` desde la terminal, nunca `pip install` dentro del notebook. Después se hace commit de `pyproject.toml` y `uv.lock`.
+1. Instalar uv con `powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"`, cerrar y abrir la terminal, y verificar con `uv --version`.
+2. Clonar el repositorio, entrar a la carpeta y correr `uv sync`.
+3. En VS Code, elegir el kernel `.venv\Scripts\python.exe`.
+4. Dejar `EN_COLAB = False`.
 
-### Celda de importaciones (segunda celda de cada notebook)
+Para agregar una librería se usa `uv add nombre-del-paquete`, nunca `pip install` en local, y se hace commit de `pyproject.toml` y `uv.lock`.
 
-Cada notebook importa solo lo que usa, igual que en clase. Base común:
+## 4. Cronograma de 12 días
 
-```python
-import time
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import joblib
-```
+El modelo final debe quedar exportado el día 8, para tener cuatro días para la app, el informe y la presentación. Mientras una persona hace el 03, otra puede ir armando la app con un modelo de prueba.
 
-Las importaciones de `sklearn` se agregan en cada notebook (se listan en las secciones 4, 5 y 6).
-
-## 3. Cronograma de 12 días
-
-El modelo debe quedar guardado el día 7 para tener cinco días de margen para la app, el informe y la presentación. Los días 4 a 6 se pueden trabajar en paralelo si el grupo se reparte los notebooks 02 y 03.
-
-| Día | Qué se hace | Se considera terminado cuando |
+| Día | Qué se hace | Terminado cuando |
 | --- | --- | --- |
-| 1 | Montar carpeta y entorno (Colab y local). Descargar el dataset. Crear `CLAUDE.md`. | Los dos CSV cargan sin error en Colab y en local. |
-| 2 | Notebook 01: carga, revisión general, crear `BF`, distribución de clases, mapa de puntos. | Se confirma cuántas clases hay en train y en test. |
-| 3 | Notebook 01: tratamiento del valor 100, duplicados, filas vacías, WAPs que nunca se detectan, LabelEncoder. Guardar procesados. | Existen `train_procesado.csv`, `test_procesado.csv` y `label_encoder.joblib`. |
-| 4 | Notebook 02: escalado (MinMax vs Standard), PCA con varianza acumulada y visualización 2D. | Se sabe cuántas componentes dan el 95%. |
-| 5 | Notebook 02: selección de rasgos (VarianceThreshold, SelectKBest, SelectFromModel, SHAP) y tabla comparativa. | Hay una lista final de rasgos con su F1 macro en CV. |
-| 6 | Notebook 03: comparación de 7 clasificadores con validación cruzada. | Tabla de resultados con media y desviación por modelo. |
-| 7 | Notebook 03: GridSearch de los 2 o 3 mejores, ensambles, elegir modelo, evaluación única en test, guardar. | Existe `modelo_final.joblib` y la matriz de confusión de test. |
-| 8 | App Gradio en local y en Colab. | La app predice correctamente una fila de test. |
-| 9 | Informe: borrador completo con figuras. | Todas las secciones tienen contenido. |
-| 10 | Presentación y ensayo de la demo de la app. | Diapositivas listas y demo probada. |
-| 11 | Revisión cruzada: cada integrante corre los notebooks de cero ("Reiniciar y ejecutar todo"). | Todo corre sin errores en un entorno limpio. |
-| 12 | Margen para imprevistos, correcciones y entrega. | Entregado. |
+| 1 | Repositorio, entorno con uv, ARFF oficial en `data/`, notebooks de clase en `referencia/`, `AGENTS.md`, `CLAUDE.md`, `ESTADO.md`. | `uv sync` corre y el ARFF carga en local y en Colab. |
+| 2 | Notebook 01: carga, revisión de variables, distribución de la clase, categóricas, numéricas y correlación phik. | Las conclusiones del EDA están escritas. |
+| 3 | Notebook 01: duplicados, columnas constantes, partición, codificación y guardado. | Existen `train.csv`, `test.csv`, `test_original.csv` y `mapeos_categoricas.joblib`. |
+| 4 | Notebook 02: comparación de escaladores y PCA. | El escalador está elegido. |
+| 5 | Notebook 02: los seis métodos de selección de rasgos, tabla comparativa y decisión. | Existe `decisiones_preprocesamiento.joblib`. |
+| 6 | Notebook 03: catálogo de modelos, pipelines y las 41 combinaciones. | Existe `comparacion_modelos.csv`. |
+| 7 | Notebook 03: heatmaps, box plots y conclusiones. Notebook 04: GridSearch de los 3 mejores. | Los 3 mejores están ajustados. |
+| 8 | Notebook 04: umbral, evaluación única en test, exportación y verificación. | `modelo_final.joblib` carga y predice igual que antes de guardarlo. |
+| 9 | App Gradio en local y en Colab. | La app pasa las pruebas de la sección 9. |
+| 10 | Informe con todas las figuras. | Todas las secciones tienen contenido. |
+| 11 | Presentación y revisión cruzada: cada integrante corre los cuatro notebooks de cero. | Todo corre sin errores en un entorno limpio. |
+| 12 | Margen, README con resultados y entrega. | Entregado. |
 
-## 4. Notebook 01 — Carga, EDA y preprocesamiento
+## 5. Notebook 01 — Carga, EDA, limpieza y partición
 
-Este notebook entrega dos CSV limpios con la etiqueta `BF` y el `LabelEncoder` guardado; su modelo de referencia es `IA_ML_Example_Dif_Classifiers_CV.ipynb` (análisis de datos y label encoding) y `ML_Normalización.ipynb` (revisión con `describe` y box plots).
+`01_EDA_Limpieza.ipynb` entrega los datos listos para modelar y el diccionario de codificación. Se basa en `IA_ML_Example_Dif_Classifiers_CV.ipynb` (análisis de datos, codificación, `train_test_split`) y en `ML_Normalización.ipynb` (`describe` y box plots).
 
-Importaciones extra: `from sklearn import preprocessing` y `import phik`.
+Importaciones extra: `from scipy.io import arff`, `from sklearn.model_selection import train_test_split`, `import phik` y `from phik.report import plot_correlation_matrix`.
 
-### 4.1 Encabezado
+### 5.1 Encabezado
 
-Celda markdown con el título, el problema en dos líneas y la fuente del dataset. Igual que los notebooks de clase: corto y directo.
+Celda markdown con el título, el problema en dos o tres líneas, la fuente (UCI, id 266) y la cita de Sikora y Wróbel (2010).
 
-### 4.2 Cargar los datos
+### 5.2 Cargar el ARFF
+
+El ARFF trae las columnas categóricas como bytes (`b'a'`), así que una función de una sola responsabilidad lo lee y lo deja como texto normal:
 
 ```python
-train = pd.read_csv(RUTA_DATOS + 'trainingData.csv')
-test = pd.read_csv(RUTA_DATOS + 'validationData.csv')
+def cargar_arff(ruta):
+    """
+    Lee el archivo .arff oficial de UCI y lo devuelve como DataFrame.
+    scipy entrega las columnas de texto como bytes (b'a'), así que aquí las pasamos a texto normal ('a')
+    para poder trabajarlas igual que si vinieran de un CSV.
+    """
+    datos_arff, meta = arff.loadarff(ruta)
+    df = pd.DataFrame(datos_arff)
+    for columna in df.columns:
+        if df[columna].dtype == object:
+            df[columna] = df[columna].str.decode('utf-8')
+    return df
 
-print(train.shape, test.shape)
-train.head()
+datos = cargar_arff(RUTA_DATOS + 'seismic-bumps.arff')
+datos['class'] = datos['class'].astype(int)   # en el ARFF la clase viene como texto '0' / '1'
 ```
 
-Verificar: 529 columnas en ambos; las primeras 520 se llaman `WAP001` a `WAP520`; las últimas 9 son `LONGITUDE`, `LATITUDE`, `FLOOR`, `BUILDINGID`, `SPACEID`, `RELATIVEPOSITION`, `USERID`, `PHONEID`, `TIMESTAMP`. Revisar nulos con `train.isnull().sum().sum()`.
+Verificar con `shape`, `head()` e `info()`. Se esperan 2.584 filas y 19 columnas. Si sale otra cantidad, **parar y avisar al grupo**.
 
-### 4.3 Separar columnas de señal y metadatos
+### 5.3 Revisión de variables
+
+- Una función `resumen_columnas(df)` arma una tabla con tipo, valores distintos y nulos de cada columna (con un ciclo `for` que llena una lista de diccionarios).
+- Después, `datos.describe()` para las numéricas.
+- Markdown con lo que notamos: cuáles son categóricas, cuáles constantes y si hay nulos.
+
+### 5.4 Distribución de la clase
+
+- `value_counts()` y gráfica de torta con porcentajes, como en clase.
+- Calcular el accuracy de un modelo que siempre dice "sin peligro" (proporción de clase 0) para mostrar la trampa del accuracy.
+- Markdown explicando por qué la métrica principal es F1.
+
+### 5.5 Variables categóricas
+
+Una función `graficar_categorica(df, columna, nombre_archivo)` hace dos gráficas lado a lado:
+
+- el conteo de cada categoría;
+- el porcentaje de turnos peligrosos en cada categoría (`pd.crosstab(df[columna], df['class'], normalize='index')`).
+
+Se llama para `seismic`, `seismoacoustic`, `shift` y `ghazard`. Markdown: ¿alguna categoría tiene más riesgo?
+
+### 5.6 Variables numéricas
+
+- Histogramas de todas las numéricas y box plots de cada una separados por clase (`sns.boxplot(x='class', y=columna, data=datos)`).
+- Markdown sobre la asimetría de las energías y los valores extremos.
+- Decisión explicada: **los extremos no se eliminan**, porque son eventos reales y justo lo que queremos detectar.
+
+### 5.7 Limpieza
+
+- **Duplicados:** contar con `datos.duplicated().sum()`, revisar de qué clase son y quitarlos con `drop_duplicates()`. Se esperan alrededor de 6; si salen más o menos, se reporta.
+- **Columnas constantes:** una función `columnas_constantes(df)` devuelve la lista de columnas con un solo valor (`nunique() == 1`). Se esperan `nbumps6`, `nbumps7` y `nbumps89`. Se eliminan y se explica por qué no aportan nada.
+
+### 5.8 Correlación con phik
+
+Como en clase, `datos.phik_matrix(interval_cols=columnas_numericas)` y `plot_correlation_matrix`. phik funciona con categóricas y numéricas a la vez. Markdown: qué variables se relacionan más con `class` y cuáles son redundantes entre sí (por ejemplo `energy` y `maxenergy`, o `nbumps` con sus rangos).
+
+### 5.9 Partición 80/20
+
+Se hace **antes** de codificar, para poder guardar una copia de test con las letras originales para la app:
 
 ```python
-cols_wap = []
-for col in train.columns:
-    if col.startswith('WAP'):
-        cols_wap.append(col)
+X = datos.drop(columns=['class'])
+y = datos['class']
 
-cols_meta = ['LONGITUDE', 'LATITUDE', 'FLOOR', 'BUILDINGID', 'SPACEID',
-             'RELATIVEPOSITION', 'USERID', 'PHONEID', 'TIMESTAMP']
-print(len(cols_wap))
-train[cols_meta].describe()
+# stratify=y para que train y test queden con el mismo ~6,6% de turnos peligrosos
+X_train_original, X_test_original, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, stratify=y, random_state=42)
 ```
 
-### 4.4 Crear la variable objetivo BF
+Verificar que la proporción de clase 1 sea casi igual en train y en test. Se esperan unos 34 turnos peligrosos en test.
+
+### 5.10 Codificación ordinal
 
 ```python
-train['BF'] = 'B' + train['BUILDINGID'].astype(str) + '_P' + train['FLOOR'].astype(str)
-test['BF'] = 'B' + test['BUILDINGID'].astype(str) + '_P' + test['FLOOR'].astype(str)
-
-print(train['BF'].value_counts().sort_index())
-print(test['BF'].value_counts().sort_index())
+# Las evaluaciones de peligro van de menos a más (a = sin peligro, b = bajo, c = alto, d = estado de peligro),
+# así que números ordenados conservan ese orden. Dejamos la 'd' aunque no aparezca en los datos,
+# por si la app recibe un turno con esa evaluación.
+mapeos = {
+    'seismic': {'a': 0, 'b': 1, 'c': 2, 'd': 3},
+    'seismoacoustic': {'a': 0, 'b': 1, 'c': 2, 'd': 3},
+    'ghazard': {'a': 0, 'b': 1, 'c': 2, 'd': 3},
+    'shift': {'N': 0, 'W': 1},   # N = turno de preparación, W = turno de extracción de carbón
+}
 ```
 
-- Gráfica de barras de `BF` en train y en test (como el pie chart de clases de clase, pero en barras porque son 13).
-- Confirmar que todas las clases de test existen en train. Si alguna falta, **parar y avisar al grupo** antes de seguir.
-- Comentar el desbalance: qué clase tiene más y cuál menos ejemplos.
+- Se aplica `codificar_categoricas(df, mapeos)` (la función de la sección 2) a `X_train_original` y `X_test_original`.
+- Se verifica que no queden nulos: si aparece uno, hay una letra que no está en `mapeos`.
+- Markdown: por qué ordinal y no one-hot (las letras tienen orden), y por qué no `LabelEncoder` (en clase se usó para la etiqueta, y aquí la etiqueta ya es 0/1).
 
-### 4.5 Mapa de los puntos de medición
+### 5.11 Guardar
 
-Scatter de `LONGITUDE` contra `LATITUDE` coloreado por `BUILDINGID`, y un segundo scatter coloreado por `FLOOR` para un solo edificio. Es la gráfica que mejor explica el problema en la presentación. Guardarla en `figuras/` con `plt.savefig`.
+- `data/train.csv` y `data/test.csv`: rasgos codificados más la columna `class`.
+- `data/test_original.csv`: test con las letras originales más `class`. Lo usa la app.
+- `models/mapeos_categoricas.joblib`.
 
-### 4.6 Análisis del valor 100 (no detectado)
+### 5.12 Conclusiones
 
-1. Porcentaje de celdas con 100 en la matriz WAP: `(train[cols_wap] == 100).sum().sum() / train[cols_wap].size`. Se espera un porcentaje muy alto (la matriz es casi vacía).
-2. Histograma de los valores detectados (todos los distintos de 100), que deben estar entre -104 y 0 dBm.
-3. Cantidad de WAPs detectados por fila: `(train[cols_wap] != 100).sum(axis=1)` e histograma. Contar filas con 0 detecciones.
-4. WAPs que nunca se detectan en train y WAPs que nunca se detectan en test, con un ciclo `for` sobre `cols_wap`. Anotar cuántos son; se usan en el notebook 02.
+Markdown en voz grupal con los números reales: filas, duplicados quitados, columnas eliminadas, desbalance, variables más relacionadas con la clase y tamaño de train y test.
 
-### 4.7 Duplicados
+## 6. Notebook 02 — Escalado, PCA y selección de rasgos
 
-`train.duplicated().sum()` y luego `train = train.drop_duplicates()`. Reportar cuántas filas se quitaron.
+`02_Escalado_PCA_Seleccion.ipynb` decide **qué escalador y qué rasgos** usan los modelos. Solo lee `train.csv`: **test no se toca**. Se basa en `ML_Normalización.ipynb`, `PCA_Wine.ipynb`, `ML_PCA.ipynb` y `ML_FeatureSelection_comparacion_metodos_SHAP.ipynb`.
 
-### 4.8 Correlación
+### 6.1 Cargar y armar X, y
 
-phik sobre 520 columnas es impracticable. Se hace en dos partes:
+`X_train` con todas las columnas menos `class`, y `y_train = train['class']`.
 
-- phik solo sobre los metadatos y `BF`, usando `plot_correlation_matrix` como en clase. Sirve para mostrar cómo se relacionan `USERID`, `PHONEID` y la ubicación.
-- Mapa de calor de correlación normal (`.corr()`) de los 20 WAPs con más detecciones.
+### 6.2 Validación cruzada y función de evaluación
 
-### 4.9 Transformar el valor 100
-
-El 100 no es una señal: significa "no detectado". Si se deja, el modelo lo trata como una señal más fuerte que cualquier señal real (0 dBm es la máxima). Se reemplaza por -105, un valor apenas por debajo del mínimo real.
+Esta función se copia **idéntica** en los notebooks 03 y 04:
 
 ```python
-train[cols_wap] = train[cols_wap].replace(100, -105)
-test[cols_wap] = test[cols_wap].replace(100, -105)
-```
+cv = StratifiedKFold(n_splits=10, shuffle=True, random_state=42)
 
-Después, quitar las filas de train sin ninguna detección (todas en -105). En test no se quita nada: es la prueba final y debe quedar como viene.
+# Con tan pocos turnos peligrosos, a veces un modelo no predice ninguno en una partición y la precisión
+# queda indefinida (scikit-learn lanza una advertencia). Con zero_division=0 la contamos como 0 y seguimos.
+metricas = {
+    'accuracy': 'accuracy',
+    'precision': make_scorer(precision_score, zero_division=0),
+    'recall': 'recall',
+    'f1': 'f1',
+    'roc_auc': 'roc_auc',
+}
 
-### 4.10 Quitar columnas que no deben ser rasgos
-
-`USERID`, `PHONEID`, `TIMESTAMP`, `SPACEID` y `RELATIVEPOSITION` se eliminan. `LONGITUDE`, `LATITUDE`, `BUILDINGID` y `FLOOR` **se guardan en el CSV** (los usa la app para dibujar el mapa), pero **nunca entran a X**: delatan la respuesta. Esto se explica en un markdown.
-
-### 4.11 Label encoding
-
-```python
-le = preprocessing.LabelEncoder()
-le.fit(train['BF'])
-print(le.classes_)
-
-train['BF_int'] = le.transform(train['BF'])
-test['BF_int'] = le.transform(test['BF'])
-
-joblib.dump(le, RUTA_MODELOS + 'label_encoder.joblib')
-```
-
-### 4.12 Guardar y concluir
-
-```python
-train.to_csv(RUTA_DATOS + 'train_procesado.csv', index=False)
-test.to_csv(RUTA_DATOS + 'test_procesado.csv', index=False)
-```
-
-Markdown final con las conclusiones del EDA en voz grupal: número de clases, desbalance, porcentaje de celdas vacías, WAPs inútiles y filas eliminadas.
-
-## 5. Notebook 02 — Escalado, PCA y selección de rasgos
-
-Este notebook decide **con qué rasgos y con qué escalado** se entrenan los modelos, y guarda esa lista en `rasgos_usados.joblib`. Sus modelos de referencia son `ML_Normalización.ipynb`, `PCA_Wine.ipynb` y `ML_FeatureSelection_comparacion_metodos_SHAP.ipynb`.
-
-Aquí **no se toca `test_procesado.csv`**. Todo se mide con validación cruzada sobre train.
-
-Importaciones extra:
-
-```python
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
-from sklearn.decomposition import PCA
-from sklearn.model_selection import StratifiedKFold, cross_validate
-from sklearn.feature_selection import VarianceThreshold, SelectKBest, SelectFromModel
-import sklearn.feature_selection as fs
-from sklearn.linear_model import LogisticRegression
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.svm import SVC
-from sklearn.ensemble import RandomForestClassifier
-import shap
-```
-
-### 5.1 Cargar datos procesados y armar X, y
-
-```python
-train = pd.read_csv(RUTA_DATOS + 'train_procesado.csv')
-
-cols_wap = []
-for col in train.columns:
-    if col.startswith('WAP'):
-        cols_wap.append(col)
-
-X_train = train[cols_wap]
-y_train = train['BF_int']
-```
-
-### 5.2 Validación cruzada y función de evaluación
-
-Se usa `StratifiedKFold` con **5 particiones** (en clase se usaron 10, pero con 520 rasgos y \~19.000 filas cada corrida tardaría el doble; se explica en un markdown). Se crea una función al estilo de `fit_and_eval` de la profesora, pero con CV:
-
-```python
-cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
-
-def eval_cv(pipeline, nombre, X, y):
+def evaluar_cv(pipeline, X, y, nombre):
+    """
+    Evalúa un pipeline con validación cruzada estratificada de 10 particiones.
+    Devuelve un diccionario con el promedio de cada métrica, la desviación del F1, el F1 de cada
+    partición (para los box plots) y el tiempo que tardó. Se agrega a la lista rows para armar la tabla.
+    """
     inicio = time.time()
-    res = cross_validate(pipeline, X, y, cv=cv,
-                         scoring=['accuracy', 'f1_macro', 'recall_macro', 'precision_macro'],
-                         n_jobs=-1)
-    duracion = time.time() - inicio
-    return {"Modelo": nombre,
-            "Accuracy": res['test_accuracy'].mean(),
-            "F1_macro": res['test_f1_macro'].mean(),
-            "F1_std": res['test_f1_macro'].std(),
-            "Recall_macro": res['test_recall_macro'].mean(),
-            "Precision_macro": res['test_precision_macro'].mean(),
-            "Tiempo_s": duracion}
+    resultados = cross_validate(pipeline, X, y, cv=cv, scoring=metricas, n_jobs=-1)
+    return {
+        'Nombre': nombre,
+        'Accuracy': resultados['test_accuracy'].mean(),
+        'Precision': resultados['test_precision'].mean(),
+        'Recall': resultados['test_recall'].mean(),
+        'F1': resultados['test_f1'].mean(),
+        'F1_std': resultados['test_f1'].std(),
+        'ROC_AUC': resultados['test_roc_auc'].mean(),
+        'F1_por_particion': resultados['test_f1'],
+        'Tiempo_s': time.time() - inicio,
+    }
 ```
 
-Cada resultado se agrega a una lista `rows` y al final se muestra con `pd.DataFrame(rows)`, igual que en `PCA_Wine`. La métrica principal es **F1 macro**, porque las clases están desbalanceadas.
+**Modelo de referencia del notebook:** `LogisticRegression(max_iter=2000, class_weight='balanced')`, igual que en el notebook de selección de rasgos de clase. Sin balanceo casi no predice turnos peligrosos y todas las comparaciones darían F1 cercano a 0. La comparación de balanceos de verdad se hace en el notebook 03.
 
-### 5.3 Escalado: sin escalar vs MinMax vs Standard
+### 6.3 Escalado
 
-Igual que en `ML_Normalización`, pero con validación cruzada. Se prueban KNN y SVC, que son los más sensibles al escalado. Son 6 combinaciones; cada una en un `Pipeline` (`scaler` + `clf`), y para "sin escalar" el pipeline solo tiene `clf`. Antes, box plots de 10 WAPs antes y después de escalar.
+- Una función `graficar_boxplots(df, titulo, nombre_archivo)` muestra los box plots de las numéricas: sin escalar, con MinMax y con Standard.
+- Se comparan con `evaluar_cv` tres pipelines (`'passthrough'`, `MinMaxScaler`, `StandardScaler`) con la regresión logística de referencia y con `SVC(class_weight='balanced')`. Son 6 filas en `rows`.
+- Markdown: con energías tan extremas, MinMax aplasta casi todos los valores cerca de 0. Se elige el escalador con mejor F1 y se explica.
 
-Resultado esperado: decidir qué escalador se usa en el resto del trabajo.
+### 6.4 PCA
 
-### 5.4 PCA
+1. Con el escalador elegido, `PCA()` completo y la gráfica de varianza acumulada con líneas en 0,90 y 0,95, como en `PCA_Wine`.
+2. Reportar cuántas componentes llegan al 90% y al 95%.
+3. Gráfica 2D con las dos primeras componentes, coloreada por clase. Se espera que las clases se mezclen mucho, y eso explica por qué el problema es difícil.
+4. Comparar con `evaluar_cv`: todos los rasgos contra PCA al 90% y al 95% (escalador → PCA → regresión logística de referencia).
+5. Markdown con la decisión. Lo más probable es no usar PCA: son pocos rasgos y se pierde la interpretación. Pero se decide con los números.
 
-1. Escalar con el escalador elegido y ajustar `PCA()` completo. Graficar la varianza acumulada con líneas horizontales en 0.90, 0.95 y 0.99, como en `PCA_Wine`.
-2. Reportar cuántas componentes se necesitan para cada umbral. Se espera una reducción grande respecto a 520; es uno de los resultados más vistosos del trabajo.
-3. Visualización 2D con las dos primeras componentes: una gráfica coloreada por edificio (deberían separarse bien) y otra por `BF` (deberían mezclarse los pisos). Guardar ambas en `figuras/`.
-4. Comparar con `eval_cv`: todos los rasgos, PCA al 95% y PCA con 2 componentes, con `LogisticRegression(max_iter=2000)` y KNN. Incluir el tiempo para mostrar si PCA acelera el entrenamiento.
+### 6.5 Selección de rasgos
 
-### 5.5 Selección de rasgos
+Los mismos métodos del notebook de clase, todos con el escalador elegido y la regresión logística de referencia:
 
-**a) VarianceThreshold.** `VarianceThreshold(threshold=0)` elimina los WAPs que nunca se detectan en train (constantes en -105). Reportar cuántos quedan. Esta lista base (`rasgos_var`) es la entrada de los siguientes métodos.
+- **a) VarianceThreshold:** sobre los datos escalados a [0, 1], con `threshold=0.01`. Detecta columnas que casi nunca cambian; se espera que `nbumps5` caiga.
+- **b) SelectKBest:** con `f_classif` y con `mutual_info_classif`, en un ciclo `for k in range(1, n_rasgos + 1)` como en clase. Gráfica de F1 contra k para los dos.
+- **c) RFECV:** con la regresión logística balanceada, `step=1`, `StratifiedKFold(5)` y `scoring='f1'`, igual que en clase.
+- **d) SequentialFeatureSelector:** hacia adelante, en un ciclo sobre k como en clase. Tarda unos minutos.
+- **e) SelectFromModel con L1:** `LogisticRegression(penalty='l1', solver='liblinear', C=0.1, class_weight='balanced')`, como en clase.
+- **f) SHAP:** `GradientBoostingClassifier` sobre una muestra de train y `shap.TreeExplainer`. Al ser binario, los valores salen de forma `(filas, rasgos)`, así que la importancia es `np.abs(valores).mean(axis=0)`. Gráficas beeswarm y de barras, y selección de los rasgos que acumulan el 90% de la importancia con un ciclo que va sumando.
 
-**b) SelectKBest.** Como el ciclo `for k in range(1, 9)` de clase, pero con valores salteados porque hay cientos de rasgos:
+### 6.6 Tabla comparativa y decisión
+
+- Una función `evaluar_conjunto(rasgos, nombre)` evalúa un conjunto de rasgos con el mismo pipeline y devuelve la fila.
+- Se arma la tabla con: todos los rasgos (línea base) y cada método, con número de rasgos, F1, desviación, recall y ROC AUC. Se guarda en `resultados/comparacion_rasgos.csv`.
+- **Regla de decisión:** el de mayor F1. Si la diferencia con un conjunto más pequeño es menor que la desviación del F1, gana el más pequeño. Se explica en markdown.
+
+### 6.7 Guardar
 
 ```python
-valores_k = [10, 25, 50, 100, 150, 200, 300]
-f1_list = []
-for k in valores_k:
-    pipe = Pipeline([
-        ("scaler", StandardScaler()),
-        ("kbest", SelectKBest(score_func=fs.f_classif, k=k)),
-        ("clf", KNeighborsClassifier(n_neighbors=5))
-    ])
-    res = eval_cv(pipe, "KBest_" + str(k), X_train[rasgos_var], y_train)
-    f1_list.append(res["F1_macro"])
+decisiones = {'escalador': escalador_elegido,   # 'StandardScaler', 'MinMaxScaler' o 'Sin escalar'
+              'rasgos': rasgos_elegidos}         # lista con los nombres de las columnas
+joblib.dump(decisiones, RUTA_MODELOS + 'decisiones_preprocesamiento.joblib')
 ```
 
-Graficar F1 contra k y elegir el mejor k.
+Conclusiones en voz grupal: escalador, componentes de PCA, método ganador y rasgos que quedaron.
 
-**c) SelectFromModel.** Con `RandomForestClassifier(n_estimators=100, random_state=42)` y `threshold='median'`. Reportar cuántos rasgos deja y su F1 en CV.
+## 7. Notebook 03 — Balanceo y comparación de los 12 modelos
 
-**d) RFE y Relief (opcional).** Con 500 rasgos son muy lentos. Si sobra tiempo, `RFE` con `step=50`; si no, se menciona en el markdown por qué no se usó.
-
-**e) SHAP.** Como en el notebook de clase, pero con un detalle: el `TreeExplainer` de SHAP puede no aceptar `GradientBoostingClassifier` con más de dos clases, así que se usa un `RandomForestClassifier` pequeño. Si en la prueba GradientBoosting sí funciona, se usa ese para quedar igual al de clase.
-
-```python
-X_sub = X_train[rasgos_var].sample(n=3000, random_state=42)
-y_sub = y_train.loc[X_sub.index]
-
-rf_shap = RandomForestClassifier(n_estimators=50, max_depth=12, random_state=42, n_jobs=-1)
-rf_shap.fit(X_sub, y_sub)
-
-explainer = shap.TreeExplainer(rf_shap)
-shap_values = explainer(X_sub.iloc[0:500])
-
-values = shap_values.values            # forma: (filas, rasgos, clases)
-shap_importance = np.abs(values).mean(axis=0).mean(axis=1)
-feature_importance_shap = pd.Series(shap_importance, index=rasgos_var).sort_values(ascending=False)
-```
-
-- Gráfica de barras de los 20 WAPs más importantes.
-- Seleccionar los rasgos que acumulan el 90% de la importancia, con un ciclo `for` que vaya sumando, igual que en clase.
-- Antes de correr esto, imprimir `values.shape` para confirmar que tiene 3 dimensiones. Si tiene otra forma (cambia entre versiones de shap), ajustar el promedio.
-
-**f) Tabla comparativa.** Una fila por método: nombre, número de rasgos, F1 macro, desviación, accuracy y tiempo. Todos con el mismo clasificador (KNN) para que sea justo.
-
-### 5.6 Decisión y guardado
-
-Elegir el conjunto de rasgos con mejor equilibrio entre F1 y número de rasgos. Si PCA gana, la decisión es "usar PCA dentro del pipeline" y se guarda la lista de `rasgos_var`.
-
-```python
-joblib.dump(rasgos_elegidos, RUTA_MODELOS + 'rasgos_usados.joblib')
-```
-
-Markdown de conclusiones: escalador elegido, componentes del 95%, método de selección ganador y por qué.
-
-## 6. Notebook 03 — Modelos, evaluación final y guardado
-
-Este notebook compara clasificadores, ajusta los mejores, evalúa **una sola vez** en test y guarda `modelo_final.joblib`. Su modelo de referencia es `IA_ML_Example_Dif_Classifiers_CV.ipynb`.
+`03_Balanceo_Comparacion_Modelos.ipynb` evalúa todas las combinaciones de modelo y estrategia de balanceo con validación cruzada, y deja la tabla con el ranking. Se basa en `IA_ML_Example_Dif_Classifiers_CV.ipynb`. **Test no se toca.**
 
 Importaciones extra:
 
 ```python
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
-from sklearn.model_selection import StratifiedKFold, cross_validate, GridSearchCV
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.naive_bayes import GaussianNB
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.linear_model import LogisticRegression
-from sklearn.svm import SVC
-from sklearn.neural_network import MLPClassifier
-from sklearn.ensemble import (RandomForestClassifier, BaggingClassifier,
-                              AdaBoostClassifier, GradientBoostingClassifier, StackingClassifier)
-from sklearn.metrics import (accuracy_score, f1_score, recall_score, precision_score,
-                             classification_report, ConfusionMatrixDisplay)
+from sklearn.base import clone
+from imblearn.pipeline import Pipeline as ImbPipeline
+from imblearn.over_sampling import SMOTE
+from imblearn.under_sampling import RandomUnderSampler
 ```
 
-### 6.1 Cargar datos, rasgos y encoder
+Además, los 12 modelos de `sklearn`.
+
+### 7.1 Cargar
+
+Cargar `train.csv` y `decisiones_preprocesamiento.joblib`, y armar `X_train = train[decisiones['rasgos']]` e `y_train`. Se copian idénticos `cv`, `metricas` y `evaluar_cv` del notebook 02.
+
+### 7.2 Catálogo de modelos
 
 ```python
-train = pd.read_csv(RUTA_DATOS + 'train_procesado.csv')
-test = pd.read_csv(RUTA_DATOS + 'test_procesado.csv')
-rasgos = joblib.load(RUTA_MODELOS + 'rasgos_usados.joblib')
-le = joblib.load(RUTA_MODELOS + 'label_encoder.joblib')
-
-X_train = train[rasgos]
-y_train = train['BF_int']
-X_test = test[rasgos]
-y_test = test['BF_int']
+def crear_modelos():
+    """
+    Devuelve los 12 modelos que comparamos, como parejas (nombre, modelo sin entrenar).
+    Son los mismos que vimos en clase. Si queremos probar otro, basta con agregar una línea aquí;
+    el resto del notebook no cambia.
+    """
+    modelos = [
+        ('KNN', KNeighborsClassifier(n_neighbors=5)),
+        ('Naive Bayes', GaussianNB()),
+        ('Árbol de decisión', DecisionTreeClassifier(random_state=42)),
+        ('Regresión logística', LogisticRegression(max_iter=2000, random_state=42)),
+        ('SVM', SVC(random_state=42)),
+        ('SVM lineal', LinearSVC(max_iter=10000, random_state=42)),
+        ('Red neuronal (MLP)', MLPClassifier(max_iter=1000, random_state=42)),
+        ('Random Forest', RandomForestClassifier(n_estimators=200, random_state=42)),
+        ('Bagging', BaggingClassifier(random_state=42)),
+        ('AdaBoost', AdaBoostClassifier(random_state=42)),
+        ('Gradient Boosting', GradientBoostingClassifier(random_state=42)),
+        ('Stacking', StackingClassifier(
+            estimators=[('rf', RandomForestClassifier(n_estimators=200, random_state=42)),
+                        ('svm', SVC(random_state=42)),
+                        ('knn', KNeighborsClassifier(n_neighbors=5))],
+            final_estimator=LogisticRegression(max_iter=2000),
+            cv=5)),
+    ]
+    return modelos
 ```
 
-Se copia la misma `cv` y la misma función `eval_cv` del notebook 02, para que los números sean comparables.
+Los modelos no llevan `n_jobs=-1`, porque la validación cruzada ya corre en paralelo y se estorbarían.
 
-### 6.2 Comparar clasificadores con validación cruzada
-
-Siete modelos con parámetros por defecto, cada uno en un `Pipeline` con el escalador elegido (y PCA si ganó en el notebook 02):
+### 7.3 Escalador, estrategias y pipeline
 
 ```python
-modelos = [
-    ('KNN', KNeighborsClassifier(n_neighbors=5)),
-    ('NaiveBayes', GaussianNB()),
-    ('Arbol', DecisionTreeClassifier(random_state=42)),
-    ('RegLogistica', LogisticRegression(max_iter=2000)),
-    ('SVM', SVC()),
-    ('MLP', MLPClassifier(max_iter=500, random_state=42)),
-    ('RandomForest', RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1))
-]
+ESTRATEGIAS = ['Sin balanceo', 'class_weight', 'SMOTE', 'Submuestreo']
 
+def crear_escalador(nombre):
+    """Devuelve un escalador nuevo según el nombre que guardamos en el notebook 02."""
+    if nombre == 'MinMaxScaler':
+        return MinMaxScaler()
+    elif nombre == 'StandardScaler':
+        return StandardScaler()
+    return 'passthrough'   # 'Sin escalar': el pipeline deja pasar los datos tal cual
+
+def admite_class_weight(modelo):
+    """
+    Dice si el modelo tiene el parámetro class_weight. KNN, Naive Bayes, MLP, Bagging, AdaBoost,
+    Gradient Boosting y Stacking no lo tienen, así que con ellos esa estrategia no aplica.
+    """
+    return 'class_weight' in modelo.get_params()
+
+def crear_pipeline(modelo, estrategia, nombre_escalador):
+    """
+    Arma el pipeline de una combinación modelo + estrategia: escalador -> (SMOTE o submuestreo) -> modelo.
+    Usamos el Pipeline de imblearn porque así el balanceo se hace solo con los datos de entrenamiento
+    de cada partición y nunca con los de validación; si no, los resultados saldrían inflados.
+    """
+    modelo = clone(modelo)   # copia limpia, para que una combinación no afecte a la siguiente
+    pasos = [('escalador', crear_escalador(nombre_escalador))]
+    if estrategia == 'SMOTE':
+        pasos.append(('balanceo', SMOTE(random_state=42)))
+    elif estrategia == 'Submuestreo':
+        pasos.append(('balanceo', RandomUnderSampler(random_state=42)))
+    elif estrategia == 'class_weight':
+        modelo.set_params(class_weight='balanced')
+    pasos.append(('clf', modelo))
+    return ImbPipeline(pasos)
+```
+
+### 7.4 Comparación de las 41 combinaciones
+
+```python
 rows = []
-for nombre, modelo in modelos:
-    pipe = Pipeline([("scaler", StandardScaler()), ("clf", modelo)])
-    res = eval_cv(pipe, nombre, X_train, y_train)
-    rows.append(res)
-    print(nombre, round(res["F1_macro"], 4), round(res["Tiempo_s"], 1), "s")
+for nombre_modelo, modelo in crear_modelos():
+    for estrategia in ESTRATEGIAS:
+        if estrategia == 'class_weight' and not admite_class_weight(modelo):
+            continue   # esta combinación no existe; lo explicamos en el markdown
+        pipeline = crear_pipeline(modelo, estrategia, decisiones['escalador'])
+        fila = evaluar_cv(pipeline, X_train, y_train, nombre_modelo + ' | ' + estrategia)
+        fila['Modelo'] = nombre_modelo
+        fila['Estrategia'] = estrategia
+        rows.append(fila)
+        print(nombre_modelo, '|', estrategia, '-> F1 =', round(fila['F1'], 3))
 
-tabla_modelos = pd.DataFrame(rows).sort_values("F1_macro", ascending=False)
-tabla_modelos
+tabla_modelos = pd.DataFrame(rows).sort_values('F1', ascending=False)
 ```
 
-- Box plot del F1 macro por partición para cada modelo, como en clase. Para eso, `eval_cv` debe devolver también el arreglo `res['test_f1_macro']`.
-- SVM y MLP son los más lentos (varios minutos cada uno). Correrlos una vez y no repetir a la ligera.
+- Son 12 × 3 + 5 = **41 combinaciones**. Stacking es el más lento: puede tardar varios minutos.
+- Se guarda `resultados/comparacion_modelos.csv` sin la columna `F1_por_particion`. Esa columna se usa aparte para los box plots.
 
-### 6.3 GridSearchCV de los 2 o 3 mejores
+### 7.5 Análisis
 
-Grillas pequeñas a propósito, para que cada búsqueda no pase de unos 15 minutos. Los nombres llevan el prefijo `clf__` porque el modelo está dentro de un pipeline.
+- **Heatmap de F1** con modelos en filas y estrategias en columnas (`tabla_modelos.pivot(index='Modelo', columns='Estrategia', values='F1')` y `sns.heatmap(annot=True, fmt='.2f')`). Las celdas que no aplican quedan vacías. Otro heatmap igual para recall.
+- **Box plot del F1 por partición**, como en clase, con la mejor estrategia de cada modelo.
+- **Gráfica de accuracy contra F1** para mostrar la trampa: sin balanceo el accuracy es alto y el F1 casi 0.
+- Markdown:
+  - qué estrategia ayuda más en general;
+  - qué modelos aprovechan mejor el balanceo;
+  - qué tan grande es la desviación entre particiones;
+  - cuáles son las **3 mejores combinaciones** (de modelos distintos), que pasan al notebook 04.
+
+## 8. Notebook 04 — Ajuste, evaluación final y exportación
+
+`04_Ajuste_Evaluacion_Exportacion.ipynb` ajusta las 3 mejores combinaciones, elige el modelo final y el umbral, lo evalúa **una sola vez** en test y lo exporta. Se basa en las secciones de GridSearch y de guardar y cargar modelos de `IA_ML_Example_Dif_Classifiers_CV.ipynb`.
+
+### 8.1 Cargar
+
+- Cargar `train.csv`, `test.csv`, las decisiones del 02 y `comparacion_modelos.csv`.
+- Copiar idénticos `cv`, `metricas`, `evaluar_cv`, `crear_modelos`, `crear_escalador`, `admite_class_weight` y `crear_pipeline`.
+- Una función `buscar_modelo(nombre)` recorre `crear_modelos()` y devuelve el modelo con ese nombre.
+
+### 8.2 Grillas de hiperparámetros
+
+Una función `obtener_grilla(nombre_modelo, estrategia)` guarda las grillas de los 12 modelos en un diccionario, así funciona sin importar cuáles queden en el top 3. Si la estrategia es SMOTE, agrega `'balanceo__k_neighbors': [3, 5, 7]`. Las grillas son pequeñas a propósito. Todas llevan el prefijo `clf__`.
 
 | Modelo | Parámetros a probar |
 | --- | --- |
-| KNN | `n_neighbors`: 1, 3, 5, 7, 9 · `weights`: uniform, distance · `metric`: euclidean, manhattan |
-| SVM | `C`: 1, 10, 100 · `gamma`: scale, 0.01, 0.001 |
-| RandomForest | `n_estimators`: 100, 300 · `max_depth`: None, 20 · `min_samples_split`: 2, 5 |
-| MLP | `hidden_layer_sizes`: (100,), (200,), (200, 100) · `alpha`: 0.0001, 0.001 |
+| KNN | `n_neighbors`: 3, 5, 7, 11, 15 · `weights`: uniform, distance |
+| Naive Bayes | `var_smoothing`: 1e-9, 1e-8, 1e-7, 1e-6 |
+| Árbol de decisión | `max_depth`: 3, 5, 8, None · `min_samples_leaf`: 1, 5, 10 |
+| Regresión logística | `C`: 0.01, 0.1, 1, 10 |
+| SVM | `C`: 0.1, 1, 10 · `gamma`: scale, 0.1, 0.01 |
+| SVM lineal | `C`: 0.01, 0.1, 1, 10 |
+| Red neuronal (MLP) | `hidden_layer_sizes`: (50,), (100,), (100, 50) · `alpha`: 0.0001, 0.001, 0.01 |
+| Random Forest | `n_estimators`: 200, 400 · `max_depth`: None, 8, 15 · `min_samples_leaf`: 1, 5 |
+| Bagging | `n_estimators`: 10, 50, 100 · `max_samples`: 0.5, 1.0 |
+| AdaBoost | `n_estimators`: 50, 100, 200 · `learning_rate`: 0.1, 0.5, 1.0 |
+| Gradient Boosting | `n_estimators`: 100, 200 · `learning_rate`: 0.05, 0.1 · `max_depth`: 2, 3 |
+| Stacking | `final_estimator__C`: 0.1, 1, 10 (queda `clf__final_estimator__C`) |
+
+### 8.3 GridSearchCV de las 3 mejores combinaciones
+
+- Tomar las 3 primeras filas de `comparacion_modelos.csv` con modelos distintos (`drop_duplicates(subset='Modelo').head(3)`).
+- Para cada una: `GridSearchCV(crear_pipeline(...), obtener_grilla(...), cv=cv, scoring='f1', n_jobs=-1, verbose=1)`.
+- Después, `evaluar_cv` sobre su `best_estimator_`, para tener todas las métricas.
+- Tabla con F1 antes y después del ajuste y los mejores parámetros. Se guarda en `resultados/ajuste_hiperparametros.csv`.
+
+### 8.4 Elegir el modelo final
+
+- Gana el de mayor F1 en validación cruzada, **nunca** el de mejor resultado en test.
+- Si gana `SVC`, se reentrena con `clf__probability=True`.
+- Si gana `LinearSVC`, que no tiene `predict_proba`, **se pregunta al grupo** si se toma el siguiente o se calibra. La app y el umbral necesitan probabilidades.
+
+### 8.5 Umbral de decisión
+
+Con pocos positivos, el umbral de 0,5 casi nunca es el mejor. Se elige **solo con train**:
 
 ```python
-param_grid = {'clf__n_neighbors': [1, 3, 5, 7, 9],
-              'clf__weights': ['uniform', 'distance'],
-              'clf__metric': ['euclidean', 'manhattan']}
+probabilidades_cv = cross_val_predict(modelo_final, X_train, y_train, cv=cv, method='predict_proba')[:, 1]
 
-knn_pipe = Pipeline([("scaler", StandardScaler()), ("clf", KNeighborsClassifier())])
-knn_cv = GridSearchCV(knn_pipe, param_grid, cv=cv, scoring='f1_macro', n_jobs=-1, verbose=1)
-knn_cv.fit(X_train, y_train)
-print(knn_cv.best_params_, knn_cv.best_score_)
+def elegir_umbral(probabilidades, y_real):
+    """
+    Prueba umbrales de 0,05 a 0,95 y devuelve el que da el mejor F1 para la clase peligrosa,
+    junto con la tabla de todos los umbrales para graficarla.
+    """
+    filas = []
+    for umbral in np.arange(0.05, 0.96, 0.05):
+        predicciones = (probabilidades >= umbral).astype(int)
+        filas.append({'Umbral': round(umbral, 2),
+                      'F1': f1_score(y_real, predicciones),
+                      'Recall': recall_score(y_real, predicciones),
+                      'Precision': precision_score(y_real, predicciones, zero_division=0)})
+    tabla_umbrales = pd.DataFrame(filas)
+    mejor_fila = tabla_umbrales.loc[tabla_umbrales['F1'].idxmax()]
+    return mejor_fila['Umbral'], tabla_umbrales
 ```
 
-Solo se ajustan los que quedaron arriba en 6.2; la tabla de arriba es una guía, no hay que correrlas todas.
+Gráfica de F1, recall y precisión contra el umbral.
 
-### 6.4 Ensambles
+### 8.6 Evaluación única en test
 
-Como en la sección de multiclasificadores de clase, evaluados con `eval_cv`:
+1. Entrenar el modelo final con todo train.
+2. Calcular `probabilidades_test = modelo_final.predict_proba(X_test)[:, 1]` y `y_pred = (probabilidades_test >= umbral).astype(int)`.
+3. Reportar:
+   - `classification_report` con `target_names=['Sin peligro', 'Peligroso']`;
+   - `ConfusionMatrixDisplay.from_predictions`;
+   - `RocCurveDisplay.from_predictions`;
+   - `PrecisionRecallDisplay.from_predictions`.
+4. Comparar con `DummyClassifier(strategy='most_frequent')` para mostrar que el accuracy solo no dice nada.
+5. Markdown:
+   - qué tan cerca quedó test de la validación cruzada;
+   - cuántos de los ~34 turnos peligrosos detectó y cuántas falsas alarmas dio;
+   - que con tan pocos positivos cada acierto mueve mucho las métricas.
 
-- `BaggingClassifier` con el mejor KNN como estimador base.
-- `AdaBoostClassifier` con `DecisionTreeClassifier(max_depth=5)`.
-- `GradientBoostingClassifier(n_estimators=50)`. Con 13 clases es lento; si pasa de 20 minutos, se reporta y se deja por fuera.
-- `StackingClassifier` con los 3 mejores modelos ajustados y `LogisticRegression` como estimador final, `cv=3` para que no tarde demasiado.
+### 8.7 Exportación
 
-### 6.5 Elegir el modelo final
+- `joblib.dump(modelo_final, RUTA_MODELOS + 'modelo_final.joblib')`. El pipeline guardado ya incluye el escalador, y SMOTE y el submuestreo solo actúan al entrenar, no al predecir.
+- `models/metadata_modelo.json` con `json.dump(..., indent=2, ensure_ascii=False)`. Lleva:
+  - `modelo`, `estrategia_balanceo`, `escalador`, `rasgos`, `umbral`;
+  - `hiperparametros` (pasados a texto);
+  - `metricas_cv` y `metricas_test` (F1, Recall, Precision, ROC_AUC, Accuracy);
+  - `fecha_entrenamiento` y `version_sklearn`.
 
-Tabla única con todos los modelos (base, ajustados y ensambles). Se elige por **F1 macro en validación cruzada**, nunca por el resultado en test. En un markdown se justifica la elección, considerando también el tiempo de predicción porque la app lo va a usar.
+### 8.8 Cargar y verificar
 
-### 6.6 Evaluación única en test
+Como en la sección "Cargar el modelo entrenado" de clase: cargar el `.joblib`, predecir sobre test y comprobar que da exactamente lo mismo que antes de guardarlo.
 
-```python
-modelo_final = knn_cv.best_estimator_   # o el que haya ganado
-modelo_final.fit(X_train, y_train)
-y_pred = modelo_final.predict(X_test)
+### 8.9 Conclusiones
 
-print("Accuracy:", accuracy_score(y_test, y_pred))
-print("F1 macro:", f1_score(y_test, y_pred, average='macro'))
-print(classification_report(y_test, y_pred, target_names=le.classes_))
-ConfusionMatrixDisplay.from_predictions(y_test, y_pred, display_labels=le.classes_,
-                                        cmap=plt.cm.Blues, xticks_rotation=45)
+Markdown en voz grupal: modelo y estrategia ganadores, umbral, métricas en CV y en test, qué aprendimos del desbalance y qué haríamos con más tiempo. Con estos números se actualizan el README y `ESTADO.md`.
+
+## 9. App Gradio (publicación del modelo)
+
+`app.py` carga lo que exportó el notebook 04 y deja evaluar un turno de tres formas. Como son pocas variables, aquí sí se puede llenar un formulario a mano.
+
+### 9.1 Pestañas
+
+- **Evaluar un turno.** El formulario se arma solo a partir de `rasgos` en la metadata:
+  - un menú desplegable para cada categórica, con las opciones de `mapeos`;
+  - un campo numérico para cada numérica;
+  - cada campo con su descripción en español.
+
+  Debajo hay dos botones. **Evaluar turno** muestra el veredicto ("⚠️ Turno peligroso" o "✅ Sin peligro previsto"), la probabilidad y el umbral usado. **Cargar un turno real al azar** llena el formulario con un turno de `test_original.csv`, lo evalúa (con `.then(...)`) y muestra el valor real.
+- **Subir un CSV.** Recibe un archivo con las columnas originales del dataset (con letras). Devuelve una tabla con el número de turno, la probabilidad de peligro y el veredicto.
+- **Sobre el modelo.** Muestra el modelo, la estrategia de balanceo, el escalador, los rasgos, el umbral, las métricas de CV y de test y la fecha de entrenamiento, todo sacado de `metadata_modelo.json`.
+
+En el encabezado va un aviso: es un proyecto académico y no reemplaza los sistemas de monitoreo reales de una mina.
+
+### 9.2 Funciones (una responsabilidad cada una, con docstring)
+
+| Función | Responsabilidad |
+| --- | --- |
+| `cargar_artefactos()` | Leer el modelo, los mapeos, la metadata y `test_original.csv`. |
+| `codificar_categoricas(df, mapeos)` | La misma del notebook 01, copiada idéntica. |
+| `validar_entrada(df_codificado)` | Si quedó algún vacío (letra desconocida o campo sin llenar), lanzar `gr.Error` con un mensaje claro. |
+| `predecir_probabilidades(df_original)` | Codificar, validar, tomar las columnas de `rasgos` en orden y devolver `predict_proba(...)[:, 1]`. |
+| `texto_veredicto(probabilidad)` | Armar el texto en Markdown comparando con el umbral. |
+| `etiquetas_probabilidad(probabilidad)` | Devolver `{'Peligroso': p, 'Sin peligro': 1 - p}` para `gr.Label`. |
+| `evaluar_turno(*valores)` | Armar una fila con los valores del formulario (Gradio los entrega en el orden de `rasgos`) y devolver el veredicto y las probabilidades. |
+| `cargar_turno_al_azar()` | Elegir una fila de `test_original.csv` y devolver sus valores y el valor real. |
+| `predecir_csv(ruta)` | Revisar que estén las columnas, predecir y devolver la tabla. |
+| `resumen_modelo()` | Armar el Markdown de la pestaña "Sobre el modelo". |
+| `crear_campo(columna)` | Devolver un `gr.Dropdown` o un `gr.Number` según la columna. |
+| `construir_interfaz()` | Armar `gr.Blocks` con las tres pestañas y conectar los botones. |
+
+Al final del archivo va `if __name__ == '__main__': construir_interfaz().launch(share=EN_COLAB)`. La parte de arriba lleva la misma configuración `EN_COLAB` / `RUTA_BASE` de los notebooks y un docstring que explica qué es la app y cómo correrla.
+
+### 9.3 Cómo correrla
+
+- **Local:** `uv run python app.py`. Se abre en `http://127.0.0.1:7860`.
+- **Colab:** poner `EN_COLAB = True` en `app.py` y, desde la carpeta del proyecto en Drive, ejecutar `%run app.py`. Gradio crea un enlace público temporal (`*.gradio.live`) que sirve para la presentación.
+
+### 9.4 Pruebas
+
+- [ ] Un turno cargado al azar da la misma probabilidad en la app y en el notebook 04.
+- [ ] Un turno con un campo vacío muestra un error claro en vez de romperse.
+- [ ] Un CSV con 5 filas de `test_original.csv` (sin `class`) devuelve 5 predicciones.
+- [ ] Un CSV al que le falta una columna muestra qué columnas faltan.
+- [ ] La pestaña "Sobre el modelo" muestra las mismas métricas del notebook 04.
+- [ ] Funciona en local y en Colab.
+
+## 10. Trabajo en equipo con agentes de IA
+
+El equipo usa Claude Code, Codex y Antigravity. Para que todos trabajen igual, las reglas viven en un solo lugar.
+
+- **`AGENTS.md`** es la fuente única de reglas: resumen del proyecto, archivos clave, flujo de notebooks, decisiones tomadas, reglas de datos, estilo de código, comentarios, comandos, forma de trabajar y definición de terminado. Codex lo lee automáticamente. Si Antigravity no lo toma solo, se agrega como regla del workspace o se le pide al iniciar: "lee AGENTS.md y ESTADO.md antes de empezar".
+- **`CLAUDE.md`** importa `AGENTS.md` con `@AGENTS.md` y solo agrega tres notas propias de Claude Code. Así nada se duplica: si una regla cambia, se cambia en `AGENTS.md`.
+- **`ESTADO.md`** dice en qué va el proyecto: avance por notebook, decisiones con fecha y motivo, resultados clave, preguntas abiertas y bitácora. **Quien termine una tarea, persona o agente, lo actualiza.**
+- **`PLAN.md`** es este documento. Si el plan cambia, se actualiza aquí y se hace commit.
+
+### Git
+
+- Una rama por tarea: `nb01-eda`, `nb02-rasgos`, `nb03-modelos`, `nb04-final`, `app`.
+- Cada tarea se integra con un Pull Request hacia `main`.
+- Mensajes de commit cortos en español con prefijo, por ejemplo `nb01: quitamos duplicados y columnas constantes`.
+- **Dos personas no editan el mismo notebook a la vez:** los `.ipynb` se mezclan muy mal.
+- Los agentes no hacen commit ni push sin que la persona a cargo lo pida.
+
+### Prompt de arranque para cualquier agente
+
+```text
+Lee AGENTS.md, ESTADO.md y la sección [N] de PLAN.md. Revisa el notebook de referencia que indica AGENTS.md para esta tarea.
+Dime en pocas líneas qué entendiste y si tienes dudas. Después crea [nombre del notebook] siguiendo el plan,
+ejecútalo completo, repórtame los números clave y actualiza ESTADO.md. No hagas commit.
 ```
 
-Análisis adicional que le da valor al trabajo, separando edificio y piso de la etiqueta combinada:
-
-```python
-real = pd.Series(le.inverse_transform(y_test))
-pred = pd.Series(le.inverse_transform(y_pred))
-
-acc_edificio = (real.str[1] == pred.str[1]).mean()   # 'B0_P2' -> '0'
-acc_piso = (real.str[4] == pred.str[4]).mean()       # 'B0_P2' -> '2'
-print(acc_edificio, acc_piso)
-```
-
-Se espera que el edificio salga casi perfecto y que los errores estén en el piso. También se compara el F1 de CV con el de test: si cae, se explica por qué (otros usuarios, otros celulares, meses después).
-
-### 6.7 Guardar y volver a cargar
-
-```python
-joblib.dump(modelo_final, RUTA_MODELOS + 'modelo_final.joblib')
-
-modelo_cargado = joblib.load(RUTA_MODELOS + 'modelo_final.joblib')
-print(le.inverse_transform(modelo_cargado.predict(X_test.iloc[0:5])))
-print(le.inverse_transform(y_test.iloc[0:5]))
-```
-
-Esto replica las secciones "Guardar un modelo" y "Cargar el modelo entrenado" de clase. El pipeline guardado ya incluye el escalador, así que la app no tiene que escalar nada aparte.
-
-### 6.8 Conclusiones
-
-Markdown en voz grupal: mejor modelo, F1 en CV y en test, accuracy de edificio y de piso, qué pisos se confunden más y qué se haría con más tiempo.
-
-## 7. App Gradio (publicación del modelo)
-
-La app carga el modelo guardado y tiene dos pestañas: probar con una medición real del set de prueba (con mapa) y subir un CSV propio. No se pide escribir 520 valores a mano porque nadie podría usarla así.
-
-### 7.1 Qué muestra
-
-**Pestaña 1 — "Probar con una medición real".** Un slider para escoger una fila de test y un botón "Elegir una al azar". Muestra la predicción, la ubicación real, si acertó, las 3 clases más probables y un mapa con todos los puntos de entrenamiento en gris y la ubicación real como una estrella roja.
-
-**Pestaña 2 — "Subir un CSV".** Se sube un archivo con el mismo formato del dataset original (columnas WAP, con 100 para no detectado). La app hace la misma transformación del 100 y devuelve una tabla con la predicción por fila. En el notebook 03 se guarda `data/ejemplo_app.csv` con 5 filas de `validationData.csv` original para probarla.
-
-### 7.2 Código de `app.py`
-
-```python
-import gradio as gr
-import pandas as pd
-import numpy as np
-import joblib
-import matplotlib.pyplot as plt
-
-EN_COLAB = False
-if EN_COLAB:
-    RUTA_BASE = '/content/drive/MyDrive/Proyecto_UJIIndoorLoc/'
-else:
-    RUTA_BASE = './'
-
-modelo = joblib.load(RUTA_BASE + 'models/modelo_final.joblib')
-le = joblib.load(RUTA_BASE + 'models/label_encoder.joblib')
-rasgos = joblib.load(RUTA_BASE + 'models/rasgos_usados.joblib')
-test = pd.read_csv(RUTA_BASE + 'data/test_procesado.csv')
-train = pd.read_csv(RUTA_BASE + 'data/train_procesado.csv')
-
-
-def texto_etiqueta(etiqueta):
-    # 'B0_P2' -> 'Edificio 0, piso 2'
-    return 'Edificio ' + etiqueta[1] + ', piso ' + etiqueta[4]
-
-
-def dibujar_mapa(fila):
-    fig, ax = plt.subplots(figsize=(7, 5))
-    ax.scatter(train['LONGITUDE'], train['LATITUDE'], s=2, c='lightgray', label='Puntos de entrenamiento')
-    ax.scatter(fila['LONGITUDE'], fila['LATITUDE'], s=200, c='red', marker='*', label='Ubicación real')
-    ax.set_xlabel('Longitud')
-    ax.set_ylabel('Latitud')
-    ax.legend()
-    return fig
-
-
-def predecir_fila(indice):
-    indice = int(indice)
-    fila = test.iloc[indice]
-    X = test[rasgos].iloc[[indice]]
-
-    pred = modelo.predict(X)[0]
-    etiqueta_pred = le.inverse_transform([pred])[0]
-    etiqueta_real = fila['BF']
-
-    if etiqueta_pred == etiqueta_real:
-        resultado = 'Acertó'
-    else:
-        resultado = 'Falló'
-
-    probs = modelo.predict_proba(X)[0]
-    dic_probs = {}
-    for i in range(len(probs)):
-        dic_probs[texto_etiqueta(le.classes_[i])] = float(probs[i])
-
-    return texto_etiqueta(etiqueta_pred), texto_etiqueta(etiqueta_real), resultado, dic_probs, dibujar_mapa(fila)
-
-
-def elegir_azar():
-    indice = np.random.randint(0, len(test))
-    pred, real, resultado, probs, mapa = predecir_fila(indice)
-    return indice, pred, real, resultado, probs, mapa
-
-
-def predecir_csv(archivo):
-    datos = pd.read_csv(archivo)
-    faltan = []
-    for col in rasgos:
-        if col not in datos.columns:
-            faltan.append(col)
-    if len(faltan) > 0:
-        raise gr.Error('Al archivo le faltan ' + str(len(faltan)) + ' columnas WAP')
-
-    X = datos[rasgos].replace(100, -105)
-    preds = modelo.predict(X)
-    etiquetas = le.inverse_transform(preds)
-
-    textos = []
-    for e in etiquetas:
-        textos.append(texto_etiqueta(e))
-
-    resultado = pd.DataFrame()
-    resultado['Fila'] = range(1, len(textos) + 1)
-    resultado['Predicción'] = textos
-    return resultado
-
-
-with gr.Blocks(title='¿En qué edificio y piso estoy?') as app:
-    gr.Markdown('# ¿En qué edificio y piso estoy?\nLocalización en interiores con señales WiFi (UJIIndoorLoc)')
-
-    with gr.Tab('Probar con una medición real'):
-        indice = gr.Slider(0, len(test) - 1, step=1, value=0, label='Medición del set de prueba')
-        with gr.Row():
-            boton = gr.Button('Predecir', variant='primary')
-            boton_azar = gr.Button('Elegir una al azar')
-        with gr.Row():
-            salida_pred = gr.Textbox(label='Predicción')
-            salida_real = gr.Textbox(label='Ubicación real')
-            salida_res = gr.Textbox(label='Resultado')
-        salida_probs = gr.Label(num_top_classes=3, label='Clases más probables')
-        salida_mapa = gr.Plot(label='Mapa')
-
-        salidas = [salida_pred, salida_real, salida_res, salida_probs, salida_mapa]
-        boton.click(predecir_fila, inputs=indice, outputs=salidas)
-        boton_azar.click(elegir_azar, outputs=[indice] + salidas)
-
-    with gr.Tab('Subir un CSV'):
-        archivo = gr.File(type='filepath', file_types=['.csv'], label='CSV con columnas WAP')
-        boton_csv = gr.Button('Predecir', variant='primary')
-        salida_tabla = gr.Dataframe(label='Resultados')
-        boton_csv.click(predecir_csv, inputs=archivo, outputs=salida_tabla)
-
-app.launch(share=EN_COLAB)
-```
-
-**Importante:** `predict_proba` existe en KNN, Random Forest, regresión logística y MLP. Si el modelo ganador es `SVC`, en el notebook 03 hay que entrenarlo con `SVC(probability=True)` antes de guardarlo; si no, la app falla en esa línea.
-
-### 7.3 Cómo correrla
-
-**Local:** desde la raíz del repositorio, en PowerShell, uv run `python app.py`. Se abre en `http://127.0.0.1:7860`.
-
-**Colab:** poner `EN_COLAB = True` en `app.py`, subirlo a la carpeta del proyecto en Drive y en una celda correr `%cd /content/drive/MyDrive/Proyecto_UJIIndoorLoc/` y luego `%run app.py`. Gradio imprime un enlace público `*.gradio.live` que dura 72 horas y sirve para la presentación.
-
-**Opcional, si sobra tiempo:** subir la app a Hugging Face Spaces para tener un enlace permanente. Requiere copiar `app.py`, `requirements.txt`, la carpeta `models/` y los CSV procesados.
-
-Hugging Face instala con pip, así que antes de subir se genera el `requirements.txt` desde uv con `uv export --format requirements-txt --no-hashes -o requirements.txt`.
-
-### 7.4 Pruebas de la app
-
-- [ ] La fila 0 de test da la misma predicción en la app y en el notebook 03.
-- [ ] El botón "Elegir una al azar" mueve el slider y actualiza todo.
-- [ ] Subir `ejemplo_app.csv` devuelve 5 predicciones.
-- [ ] Subir un CSV sin columnas WAP muestra el mensaje de error en vez de romperse.
-- [ ] Funciona en local y en Colab con el enlace público.
-
-## 8. Trabajar con Claude Code en local
-
-Claude Code lee `CLAUDE.md` al iniciar en la carpeta, así que ahí van las reglas del proyecto. Este plan se exporta a Markdown como `PLAN.md` y se pone en la misma carpeta, junto con los notebooks de clase en una subcarpeta `referencia/` para que imite su estilo.
-
-### 8.1 Contenido de `CLAUDE.md`
-
-```markdown
-# Proyecto: Localización WiFi indoor (UJIIndoorLoc) - Fundamentos de IA, EIA
-
-## Contexto
-- Clasificación de edificio + piso combinados (variable BF, ~13 clases) a partir de 520 señales WiFi.
-- El plan completo está en PLAN.md. Seguirlo en orden y no saltarse pasos.
-- Los notebooks de clase están en referencia/. Imitar su estructura, nombres y forma de escribir.
-
-## Entorno
-- Windows 11, PowerShell, VS Code. El entorno se administra con uv (pyproject.toml + uv.lock), Python 3.11.
-- Para correr Python o Jupyter usar siempre `uv run ...` (por ejemplo `uv run python app.py`).
-- NO usar pip. Si hace falta una librería nueva, preguntar primero y luego agregarla con `uv add nombre-del-paquete`.
-- Los CSV de data/ y los .joblib de models/ están en .gitignore. No cambiar eso sin preguntar.
-
-## Reglas de código
-- Código de nivel básico-intermedio, como en los notebooks de referencia.
-- NO usar list comprehensions, dict comprehensions, generadores ni lambdas. Usar ciclos for simples.
-- Usar Pipeline, StratifiedKFold, GridSearchCV y joblib como en clase.
-- La primera celda de cada notebook es la de configuración con EN_COLAB y RUTA_BASE.
-- Nunca usar LONGITUDE, LATITUDE, BUILDINGID, FLOOR, SPACEID, RELATIVEPOSITION, USERID, PHONEID ni TIMESTAMP como rasgos.
-- validationData.csv / test_procesado.csv solo se usa en la sección de evaluación final del notebook 03.
-- random_state=42 en todo.
-
-## Reglas de escritura
-- Todo en español.
-- Celdas markdown cortas, en voz grupal ("probamos", "notamos", "decidimos"), naturales, como las escribiría un estudiante.
-- Nada de tablas en markdown: explicar los resultados en prosa.
-
-## Forma de trabajar
-- Si algo no está claro o un resultado no cuadra con lo esperado en PLAN.md, preguntar antes de seguir. No suponer.
-- Después de editar un notebook, ejecutarlo completo para verificar que corre:
-  uv run jupyter nbconvert --to notebook --execute --inplace <notebook>.ipynb --ExecutePreprocessor.timeout=-1
-- No hacer commits ni push sin que se lo pidamos.
-```
-
-### 8.2 Flujo recomendado
-
-1. Abrir PowerShell en la carpeta del repositorio, correr `uv sync` (por si alguien agregó librerías) y luego `claude`.
-2. Pedir un notebook a la vez, nombrando la sección del plan. Por ejemplo: "Crea 01\_EDA\_Preprocesamiento.ipynb siguiendo la sección 4 de PLAN.md".
-3. Pedirle que lo ejecute de punta a punta con `uv run jupyter nbconvert --to notebook --execute --inplace 01_EDA_Preprocesamiento.ipynb --ExecutePreprocessor.timeout=-1` y que reporte los números clave (clases, filas eliminadas, WAPs inútiles).
-4. Revisar el notebook en VS Code antes de pasar al siguiente. Los resultados de un notebook alimentan al siguiente, así que un error en el 01 se arrastra.
-5. Para el 02 y el 03, avisarle que algunas celdas tardan varios minutos (SVM, MLP, GridSearch).
-6. Cuando el notebook esté aprobado, hacer commit en la rama de quien lo trabaja (una persona por notebook) y abrir un Pull Request hacia `main`.
-7. Al terminar todo, correr los notebooks una vez en Colab con `EN_COLAB = True` para confirmar que funcionan en ambos lados.
-
-## 9. Informe
-
-El informe cuenta el proceso y las decisiones, no repite el código; cada sección sale de un notebook. Si la profesora dio un formato o una extensión, ese formato manda sobre esta propuesta.
-
-1. **Introducción.** El problema del GPS en interiores, por qué importa (centros comerciales, hospitales, universidades) y el objetivo: predecir edificio y piso.
-2. **Dataset.** Origen (Universitat Jaume I, competencia IPIN), tamaño, qué es una huella WiFi, el valor 100 y la separación entre entrenamiento y validación tomada meses después. Cita del artículo de Torres-Sospedra et al. (2014).
-3. **Análisis exploratorio.** Distribución de las 13 clases, mapa de puntos, porcentaje de señales vacías y WAPs inútiles. Sale del notebook 01.
-4. **Preprocesamiento.** Por qué el 100 se cambió por -105, duplicados, filas vacías, columnas eliminadas y por qué las coordenadas no se usan como rasgos.
-5. **Reducción de dimensionalidad y selección de rasgos.** Comparación de escaladores, varianza acumulada de PCA, proyección 2D, comparación de métodos de selección y SHAP. Sale del notebook 02.
-6. **Modelos.** Comparación de los 7 clasificadores con CV, ajuste de hiperparámetros, ensambles y elección del modelo final.
-7. **Resultados en el set de prueba.** Métricas, matriz de confusión, accuracy de edificio vs de piso y diferencia entre CV y test. Sale del notebook 03.
-8. **App.** Captura de las dos pestañas y cómo se usa.
-9. **Conclusiones y trabajo futuro.** Qué aprendimos, limitaciones (otros celulares, cambios en los routers con el tiempo) y qué se podría hacer después (predecir coordenadas con regresión, recolectar datos en la EIA).
-10. **Referencias.** UCI, artículo original, documentación de scikit-learn, SHAP y Gradio.
-
-Las figuras salen de la carpeta `figuras/`, que se va llenando con `plt.savefig` en cada notebook. Así no hay que volver a correr nada para armar el informe.
-
-## 10. Presentación
-
-Se proponen 11 diapositivas para unos 12 a 15 minutos, cerrando con la demo en vivo de la app; si la profesora fijó otra duración, se recortan las de métodos.
-
-1. **Título:** "¿En qué edificio y piso estoy?" e integrantes.
-2. **El problema:** el GPS no funciona dentro de edificios. Una pregunta al público: "¿cómo sabe Google Maps en qué piso de un centro comercial están?"
-3. **El dataset:** qué es una huella WiFi y el mapa de puntos de los tres edificios.
-4. **El reto:** 520 rasgos casi vacíos, 13 clases desbalanceadas, prueba con otros usuarios meses después.
-5. **Preprocesamiento:** el truco del 100 y por qué importa.
-6. **PCA:** varianza acumulada y la proyección 2D donde se ven los edificios separados.
-7. **Selección de rasgos y SHAP:** cuántos WAPs bastan y cuáles pesan más.
-8. **Comparación de modelos:** box plot del F1 macro por modelo.
-9. **Resultado final:** matriz de confusión y accuracy de edificio vs piso.
-10. **Demo en vivo** de la app.
-11. **Conclusiones y trabajo futuro.**
-
-Para la demo, tener abierto el enlace de Gradio antes de empezar y un video corto de respaldo por si falla internet.
-
-## 11. Riesgos y checklist final
-
-El riesgo más probable no es que el modelo salga mal, sino que la validación cruzada salga casi perfecta y el test bastante más bajo; eso hay que explicarlo, no esconderlo.
-
-### 11.1 Trampas conocidas
-
-- **CV demasiado optimista.** En train hay muchas mediciones repetidas en los mismos puntos y por los mismos usuarios, así que las particiones de CV se parecen mucho entre sí. En test los usuarios son otros. Si sobra tiempo, un análisis extra con `GroupKFold` agrupando por `USERID` muestra una estimación más realista y es un punto fuerte del informe.
-- **Fuga de información.** Las coordenadas y los IDs nunca entran a X, y el escalador y PCA siempre van dentro del `Pipeline` para que se ajusten solo con los datos de entrenamiento de cada partición.
-- **Usar test más de una vez.** Si se prueba en test, se ve el resultado y se cambia el modelo, el resultado ya no vale. Test se usa una vez, en la sección 6.6.
-- **Tiempos largos.** Si un GridSearch pasa de 20 minutos, se corre sobre una muestra estratificada del 50% de train y se aclara en el markdown.
-- **Colab se desconecta.** Guardar en Drive lo que tarda en calcularse (tablas de resultados con `to_csv`, modelos ajustados con `joblib`) para no repetirlo.
-- **Versiones de librerías.** La forma de los valores SHAP y algunos parámetros de Gradio cambian entre versiones. Si algo falla, imprimir `shap.__version__` y `gr.__version__` antes de cambiar código.
-- **SVM sin probabilidades.** Si gana SVM, entrenarlo con `probability=True` antes de guardarlo, o la app falla.
-
-### 11.2 Checklist de entrega
-
-- [ ] Los tres notebooks corren de cero con "Reiniciar y ejecutar todo", en Colab y en local.
-- [ ] Ningún notebook usa list comprehensions ni construcciones avanzadas.
-- [ ] Todos los markdown están en español y en voz grupal.
-- [ ] `test_procesado.csv` solo se usa en la sección 6.6.
-- [ ] Existen `modelo_final.joblib`, `label_encoder.joblib` y `rasgos_usados.joblib`.
-- [ ] La app pasa las 5 pruebas de la sección 7.4.
-- [ ] Todas las figuras del informe están en `figuras/`.
-- [ ] El informe tiene todas las secciones y las referencias.
-- [ ] La presentación está ensayada con la demo y hay video de respaldo.
+## 11. Informe y presentación
+
+Si la profesora dio un formato, extensión o duración, eso manda sobre esta propuesta.
+
+### Informe
+
+1. **Introducción:** el peligro sísmico en minas, por qué es difícil de anticipar y el objetivo del trabajo.
+2. **Dataset:** origen, qué mide cada variable, el desbalance y la cita de Sikora y Wróbel (2010).
+3. **Análisis exploratorio:** distribución de la clase, categóricas, numéricas y correlación phik (notebook 01).
+4. **Preprocesamiento:** duplicados, columnas constantes, por qué no quitamos los extremos, codificación ordinal y partición.
+5. **Escalado, PCA y selección de rasgos** (notebook 02).
+6. **Balanceo y comparación de modelos:** los heatmaps de las 41 combinaciones y la trampa del accuracy (notebook 03).
+7. **Modelo final:** ajuste, umbral y resultados en test (notebook 04).
+8. **App:** capturas de las tres pestañas.
+9. **Conclusiones, limitaciones y trabajo futuro.**
+10. **Referencias.**
+
+Todas las figuras salen de `figuras/`, así no hay que volver a correr nada.
+
+### Presentación (unos 12 a 15 minutos)
+
+1. Título e integrantes.
+2. El problema: peligro sísmico en minas y por qué importa.
+3. El dataset y qué mide.
+4. El reto: solo 6,6% de turnos peligrosos y la trampa del accuracy.
+5. Hallazgos del EDA.
+6. Preprocesamiento y selección de rasgos.
+7. Las 41 combinaciones: heatmap de F1.
+8. Modelo final, umbral y matriz de confusión en test.
+9. Demo en vivo de la app.
+10. Conclusiones y trabajo futuro.
+
+Para la demo: tener abierto el enlace de Gradio antes de empezar y un video corto de respaldo.
+
+## 12. Riesgos y checklist final
+
+El riesgo principal no es técnico: es que el F1 de la clase peligrosa salga modesto y parezca un mal trabajo. Hay que mostrarlo como lo que es, un problema difícil bien analizado.
+
+### 12.1 Trampas conocidas
+
+- **F1 bajo.** En la prueba rápida con la copia CSV salió entre 0,14 y 0,26. Hay que confirmar con la profesora que un resultado así es aceptable si está bien analizado, y compararlo siempre con la línea base que nunca da la alerta.
+- **Fuga de información por el balanceo.** SMOTE o el submuestreo fuera del pipeline, o antes de la validación cruzada, inflan los resultados. Siempre van dentro de `ImbPipeline`.
+- **Usar test antes de tiempo.** Test solo se usa en la sección 8.6. Elegir modelo, hiperparámetros o umbral mirando test invalida el resultado.
+- **Pocos positivos en test.** Son unos 34, y cada acierto mueve el recall cerca de 3 puntos. Los resultados de test se leen junto con la media y la desviación de la CV.
+- **Sesgo por elegir entre 41 combinaciones.** El mejor de muchos tiende a verse mejor de lo que es. Por eso el test se reserva para el final.
+- **Diferencias entre el ARFF y la copia CSV.** Si la cantidad de filas o de duplicados no es la esperada, se reporta antes de seguir.
+- **Modelo sin `predict_proba`.** `LinearSVC` no lo tiene, y si gana se pregunta al grupo.
+- **Advertencias.** Las de convergencia del MLP y las de precisión indefinida son esperables; se explican en un markdown y no se ocultan con un `filterwarnings` global.
+- **Versiones.** Si imbalanced-learn y scikit-learn chocan, `uv` lo avisa al instalar. No se cambian versiones sin preguntar.
+- **Colab.** Hay que instalar imbalanced-learn y los demás paquetes al inicio de cada sesión.
+
+### 12.2 Checklist de entrega
+
+- [ ] Los cuatro notebooks corren de cero con "Reiniciar y ejecutar todo", en local y en Colab.
+- [ ] Ningún notebook usa comprehensions, lambdas ni generadores.
+- [ ] Cada función tiene docstring y una sola responsabilidad. Las funciones repetidas son idénticas en todos los notebooks.
+- [ ] Todos los markdown están en español, en voz grupal y con los números reales.
+- [ ] `test.csv` solo se usa en la sección 8.6.
+- [ ] Existen `modelo_final.joblib`, `metadata_modelo.json`, `mapeos_categoricas.joblib` y `decisiones_preprocesamiento.joblib`.
+- [ ] La app pasa las pruebas de la sección 9.4.
+- [ ] El README tiene la tabla de resultados llena y los integrantes.
+- [ ] `ESTADO.md` está al día.
+- [ ] Informe completo y presentación ensayada con demo y video de respaldo.
