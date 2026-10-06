@@ -299,9 +299,9 @@ La app se abre en `http://127.0.0.1:7860` y tiene tres pestañas:
 
 | Pestaña | Qué hace |
 | :--- | :--- |
-| **Evaluar un turno** | Formulario con los rasgos que usa el modelo (el formulario se arma solo a partir de `metadata_modelo.json`). Muestra si el siguiente turno sería peligroso, el riesgo estimado en % y el umbral. Con el botón **Cargar un turno real al azar** se llena con un turno del set de prueba y se ve también el valor real |
+| **Evaluar un turno** | Formulario con los rasgos que usa el modelo (se arma solo a partir de `metadata_modelo.json`). Muestra el veredicto y un medidor animado con el riesgo estimado en %, el umbral de alerta y el riesgo normal. Los botones **Turno tranquilo**, **Turno en el límite**, **Turno intenso** y **Cargar un turno real al azar** llenan el formulario con turnos reales del set de prueba y muestran también el valor real |
 | **Subir un CSV** | Recibe un archivo con las columnas originales del dataset (basta con las que usa el modelo) y devuelve la probabilidad y el veredicto de cada turno |
-| **Sobre el modelo** | Modelo elegido, estrategia de balanceo, calibración, umbral y métricas de validación cruzada y de prueba |
+| **Sobre el modelo** | Modelo elegido, estrategia de balanceo, calibración, rasgos, umbral y tarjetas con las métricas de prueba (y de validación cruzada al lado) |
 
 En Colab, cambia `EN_COLAB = True` dentro de `app.py` y ejecuta `%run app.py` desde la carpeta del proyecto. Gradio genera un enlace público temporal (`*.gradio.live`).
 
