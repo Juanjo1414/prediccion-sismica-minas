@@ -20,7 +20,7 @@
 - [x] 04 — Ajuste, evaluación final y exportación (ejecutado completo sin errores, 2026-10-06)
 
 ### Publicación y entregables
-- [ ] App Gradio funcionando en local
+- [x] App Gradio funcionando en local (probada el 2026-10-06, ver bitácora)
 - [ ] App Gradio funcionando en Colab (enlace público)
 - [ ] README con resultados finales
 - [ ] Informe
@@ -44,6 +44,7 @@
 | 2026-10-06 | Regla de selección de rasgos cambiada: solo compiten métodos con selector dentro del pipeline, mínimo 3 rasgos y gana el de mayor F1 | La regla del plan dejaba solo `nbumps` (1 rasgo), con F1 de todos los métodos dentro del ruido de la CV; con 1 rasgo el 03 y la app pierden sentido. Decidido por Juan |
 | 2026-10-06 | Rasgos elegidos: `gpuls`, `nbumps`, `nbumps2`, `nbumps3`, `energy` (SelectKBest con información mutua, k=5) | F1 CV 0,283 ± 0,068 y ROC AUC 0,768 (vs 0,744 de `nbumps` solo); selección sin filtración |
 | 2026-10-06 | Top 3 para el notebook 04: Naive Bayes, regresión logística y SVM lineal, los tres con submuestreo | Mayor F1 en CV entre modelos distintos (0,309, 0,298 y 0,291); la SVM lineal no tiene `predict_proba`, así que si gana en el 04 se consulta al grupo |
+| 2026-10-06 | La app pide solo los rasgos de `metadata_modelo.json` (hoy 5, todos numéricos) y muestra el riesgo en % más el veredicto con el umbral; el CSV solo necesita esas columnas (las demás se ignoran) | El formulario se arma solo a partir de `rasgos`, como pide el plan; así no se piden datos que el modelo no usa |
 | 2026-10-06 | Cambio de enfoque en el notebook 04: hiperparámetros con `scoring='average_precision'` (no F1) y probabilidades calibradas (`CalibratedClassifierCV`, sigmoide, cv=5) antes de elegir el umbral | La primera versión (regresión logística `C=0,01`, F1 test 0,296) daba probabilidades pegadas a 0,5, inservibles para la app. Decidido por Juan: un modelo que funcione bien, aunque se salga del plan. Se detectó con datos de train, pero el test de la primera versión ya se había visto: **el test ya no es virgen y hay que decirlo en el informe** |
 | 2026-10-06 | Modelo final: SVM lineal + submuestreo + calibración sigmoide (`C=0,1`), umbral 0,10 | Mayor F1 en CV con probabilidades calibradas (0,333 vs 0,323 de regresión logística y 0,309 de Naive Bayes; empate práctico). La calibración le da `predict_proba` a la SVM lineal |
 | 2026-10-06 | Grilla de umbrales de 0,01 en 0,01 (en vez de 0,05 en 0,05 del plan) | Con probabilidades calibradas la mayoría quedan por debajo de 0,2 y se necesitan pasos finos |
@@ -76,6 +77,7 @@
 
 | Fecha | Quién | Qué se hizo | Resultado / siguiente paso |
 | :--- | :--- | :--- | :--- |
+| 2026-10-06 | Juan | Se creó `app.py` (Gradio, 3 pestañas) y se probó en local | Pruebas de la sección 9.4 de PLAN.md: pasan 1 a 5 y la prueba en local (misma probabilidad que el modelo del notebook 04 en los 516 turnos de test, 73 alarmas igual que el notebook, campo vacío y columna faltante con mensaje claro, CSV de 5 y de 516 filas, métricas de "Sobre el modelo" iguales a la metadata, botón de turno al azar con `.then`). **Falta probar en Colab** y subir el commit. El formulario tiene solo los 5 rasgos del modelo y muestra el riesgo estimado en % |
 | 2026-10-06 | Juan | Se creó y ejecutó `04_Ajuste_Evaluacion_Exportacion.ipynb` completo, con cambio de enfoque (calibración de probabilidades) | Genera `modelo_final.joblib`, `metadata_modelo.json`, `ajuste_hiperparametros.csv` y 5 figuras `04_*.png`; el modelo cargado predice igual que el original. Siguiente: `app.py` |
 | 2026-10-06 | Juan | Se creó y ejecutó `03_Balanceo_Comparacion_Modelos.ipynb` completo (41 combinaciones, unos 2 min) | Genera `resultados/comparacion_modelos.csv` y 4 figuras `03_*.png`. Siguiente: notebook 04 |
 | 2026-10-06 | Juan | Se creó y ejecutó `02_Escalado_PCA_Seleccion.ipynb` completo | Genera `decisiones_preprocesamiento.joblib` (MinMaxScaler + 5 rasgos de información mutua), `resultados/comparacion_rasgos.csv` y 10 figuras `02_*.png`. Siguiente: notebook 03 |
