@@ -1,0 +1,37 @@
+{
+  "modelo": "SVM lineal",
+  "estrategia_balanceo": "Submuestreo",
+  "calibracion": "sigmoide (CalibratedClassifierCV, 5 particiones)",
+  "escalador": "MinMaxScaler",
+  "rasgos": [
+    "gpuls",
+    "nbumps",
+    "nbumps2",
+    "nbumps3",
+    "energy"
+  ],
+  "umbral": 0.1,
+  "hiperparametros": {
+    "clf__C": "0.1"
+  },
+  "metricas_cv": {
+    "F1": 0.3333333333333333,
+    "Recall": 0.5367647058823529,
+    "Precision": 0.24172185430463577,
+    "ROC_AUC": 0.7770390477063099,
+    "Accuracy": 0.8583899127061105,
+    "Precision_promedio": 0.2064389436940618,
+    "Brier": 0.05792267528943036
+  },
+  "metricas_test": {
+    "F1": 0.29906542056074764,
+    "Recall": 0.47058823529411764,
+    "Precision": 0.2191780821917808,
+    "ROC_AUC": 0.7443861361972175,
+    "Accuracy": 0.8546511627906976,
+    "Precision_promedio": 0.19169725303485693,
+    "Brier": 0.059477455148986405
+  },
+  "fecha_entrenamiento": "2026-10-06T13:05:21",
+  "version_sklearn": "1.9.1"
+}
