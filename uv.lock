@@ -1244,46 +1244,6 @@ wheels = [
 ]
 
 [[package]]
-name = "localizacion-wifi-indoor"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "gradio" },
-    { name = "imbalanced-learn" },
-    { name = "ipykernel" },
-    { name = "joblib" },
-    { name = "matplotlib" },
-    { name = "nbconvert" },
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "pandas" },
-    { name = "phik" },
-    { name = "scikit-learn" },
-    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "seaborn" },
-    { name = "shap", version = "0.51.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "shap", version = "0.52.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "gradio", specifier = ">=6.29.0" },
-    { name = "imbalanced-learn", specifier = ">=0.14.2" },
-    { name = "ipykernel", specifier = ">=7.4.0" },
-    { name = "joblib", specifier = ">=1.6.0" },
-    { name = "matplotlib", specifier = ">=3.11.2" },
-    { name = "nbconvert", specifier = ">=7.17.1" },
-    { name = "numpy", specifier = ">=2.4.6" },
-    { name = "pandas", specifier = ">=3.0.6" },
-    { name = "phik", specifier = ">=0.12.5" },
-    { name = "scikit-learn", specifier = ">=1.9.1" },
-    { name = "scipy", specifier = ">=1.17.1" },
-    { name = "seaborn", specifier = ">=0.13.2" },
-    { name = "shap", specifier = ">=0.51.0" },
-]
-
-[[package]]
 name = "markdown-it-py"
 version = "4.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2099,6 +2059,46 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/17/c8/721b3855fe457da514fe249247d404b9b39c5d16532278f70ebaa6acf18b/platformdirs-4.12.2.tar.gz", hash = "sha256:eab5f70271a490ef74618bb314fbb86e3c7e82fa3b9c922c2ea0e0a1a155d329", size = 59353, upload-time = "2026-09-29T18:27:56.009Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d0/89/446044f33aba0348d35e433f56d12206d010a5281a1df54054d4cfb82388/platformdirs-4.12.2-py3-none-any.whl", hash = "sha256:29dbf06d96c500bc6bdbce75fb0a14d63279c93b1842f97e72a135b33e856983", size = 32457, upload-time = "2026-09-29T18:27:54.43Z" },
+]
+
+[[package]]
+name = "prediccion-sismica-minas"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "gradio" },
+    { name = "imbalanced-learn" },
+    { name = "ipykernel" },
+    { name = "joblib" },
+    { name = "matplotlib" },
+    { name = "nbconvert" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "pandas" },
+    { name = "phik" },
+    { name = "scikit-learn" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "seaborn" },
+    { name = "shap", version = "0.51.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "shap", version = "0.52.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "gradio", specifier = ">=6.29.0" },
+    { name = "imbalanced-learn", specifier = ">=0.14.2" },
+    { name = "ipykernel", specifier = ">=7.4.0" },
+    { name = "joblib", specifier = ">=1.6.0" },
+    { name = "matplotlib", specifier = ">=3.11.2" },
+    { name = "nbconvert", specifier = ">=7.17.1" },
+    { name = "numpy", specifier = ">=2.4.6" },
+    { name = "pandas", specifier = ">=3.0.6" },
+    { name = "phik", specifier = ">=0.12.5" },
+    { name = "scikit-learn", specifier = ">=1.9.1" },
+    { name = "scipy", specifier = ">=1.17.1" },
+    { name = "seaborn", specifier = ">=0.13.2" },
+    { name = "shap", specifier = ">=0.51.0" },
 ]
 
 [[package]]
