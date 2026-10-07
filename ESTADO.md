@@ -3,7 +3,7 @@
 > Este archivo lo actualiza quien termine una tarea (persona o agente). Es la forma de que todos sepamos en qué va el proyecto sin tener que preguntar.
 > Regla: al terminar, marca el avance, anota cualquier decisión nueva y agrega una línea a la bitácora (la más reciente arriba).
 
-**Última actualización:** 2026-10-06
+**Última actualización:** 2026-10-07
 
 ## Avance
 
@@ -77,6 +77,9 @@
 
 | Fecha | Quién | Qué se hizo | Resultado / siguiente paso |
 | :--- | :--- | :--- | :--- |
+| 2026-10-07 | Asistente | Se revisaron el código y las salidas guardadas del notebook 02 para explicarlo paso a paso | Explicación de CV, escalado, PCA, selectores y decisión final; se aclaró que VarianceThreshold sí admite pipeline y que ajustarlo antes de CV usa información de las particiones de validación. Sin modificar ni ejecutar el notebook |
+| 2026-10-06 | Asistente | Se leyeron todas las celdas y las salidas guardadas del notebook 01 para explicar su funcionamiento paso a paso | Explicación de carga, exploración, limpieza, phik, partición, codificación y exportación. Sin modificar ni volver a ejecutar el notebook |
+| 2026-10-06 | Asistente | Se revisó la estructura, la documentación, la configuración de ejecución y la metadata para explicar el proyecto y su puesta en marcha | En esta copia se detectó uv 0.12.2 y `uv.lock`, pero no `.venv/Scripts/python.exe`. Los artefactos entrenados están presentes; el primer paso local es `uv sync`. No se instalaron dependencias ni se ejecutaron la app o los notebooks en esta revisión. `graphify-out/GRAPH_REPORT.md` describe otro proyecto (UJIIndoorLoc) |
 | 2026-10-06 | Juan | Se rediseñó `app.py` con la identidad visual de la presentación (tema y CSS propios, encabezado con sismograma, medidor de riesgo animado, turnos reales de ejemplo y tarjetas de métricas) | Misma lógica y mismas pruebas de la sección 9.4 (probadas en navegador y por API). `evaluar_turno` devuelve ahora la tarjeta HTML y se quitó `etiquetas_probabilidad`. En Gradio 6 el tema y el CSS se pasan en `launch()`. Falta probar en Colab |
 | 2026-10-06 | Juan | Se escribieron el informe final (HTML con estilo de impresión y PDF de 22 páginas) y la presentación interactiva en HTML (14 diapositivas con notas del orador, cronómetro, gráficas con los datos reales y un simulador que reproduce el modelo final con diferencia de 10⁻¹⁶ respecto a Python) | Revisados en pantalla y en navegador. Siguiente: ensayar la presentación, probar la app en Colab y que cada integrante corra los 4 notebooks de cero |
 | 2026-10-06 | Juan | Se actualizó el README: resultados finales, calibración, 5 rasgos y nota de transparencia sobre el test | Quedan pendientes: probar la app en Colab, el informe y la presentación, y la revisión cruzada (correr los 4 notebooks de cero) |
