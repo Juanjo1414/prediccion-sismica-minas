@@ -1,0 +1,15 @@
+Columna,Tratamiento_provisional,Descripcion,Observacion
+Call  Failure,Conteo,Llamadas fallidas,Nombre con espacios dobles.
+Complains,Binaria,0 sin queja; 1 con queja,No es el número de quejas.
+Subscription  Length,Numérica,Meses de suscripción,Nombre con espacios dobles.
+Charge  Amount,Ordinal,"Nivel de cargo, documentado de 0 a 9",Revisar valores 10; no asumir unidades monetarias.
+Seconds of Use,Numérica,Segundos de llamadas,Medición agregada.
+Frequency of use,Conteo,Número de llamadas,Medición agregada.
+Frequency of SMS,Conteo,Número de mensajes,Medición agregada.
+Distinct Called Numbers,Conteo,Números distintos llamados,Medición agregada.
+Age Group,Ordinal,Grupo de edad de 1 a 5,Revisar redundancia con Age.
+Tariff Plan,Nominal binaria,1 pago por uso; 2 contractual,Los códigos no son cantidades.
+Status,Nominal binaria,1 activo; 2 no activo,Aclarar criterio de inactividad y momento operativo.
+Age,Numérica,Edad,Pocos valores distintos: posible discretización; no afirmar edades exactas.
+Customer Value,Numérica derivada,Valor calculado del cliente,"Fórmula, unidad y trazabilidad no detalladas."
+Churn,Objetivo binario,1 abandono; 0 permanencia,Mes doce según UCI; nunca entra como rasgo.

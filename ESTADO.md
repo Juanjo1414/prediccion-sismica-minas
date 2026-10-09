@@ -3,7 +3,7 @@
 > Este archivo lo actualiza quien termine una tarea (persona o agente). Es la forma de que todos sepamos en qué va el proyecto sin tener que preguntar.
 > Regla: al terminar, marca el avance, anota cualquier decisión nueva y agrega una línea a la bitácora (la más reciente arriba).
 
-**Última actualización:** 2026-10-07
+**Última actualización:** 2026-10-08
 
 ## Avance
 
@@ -77,6 +77,8 @@
 
 | Fecha | Quién | Qué se hizo | Resultado / siguiente paso |
 | :--- | :--- | :--- | :--- |
+| 2026-10-08 | Asistente | Se revisaron el código y las salidas guardadas del notebook 04 para explicar ajuste, calibración, umbral, evaluación y exportación | Se aclararon la precisión promedio, las métricas agrupadas de predicciones fuera de partición, los límites de la calibración y la consulta previa de test. Sin modificar ni ejecutar el notebook |
+| 2026-10-07 | Asistente | Se revisaron las celdas y las salidas guardadas del notebook 03 para explicar las 41 combinaciones y la selección de candidatos | Explicación del catálogo, balanceo dentro del pipeline, métricas y gráficas. Se distinguió F1 cero de ausencia de alertas y se aclararon los límites de comparar promedios y desviaciones. Sin modificar ni ejecutar el notebook |
 | 2026-10-07 | Asistente | Se revisaron el código y las salidas guardadas del notebook 02 para explicarlo paso a paso | Explicación de CV, escalado, PCA, selectores y decisión final; se aclaró que VarianceThreshold sí admite pipeline y que ajustarlo antes de CV usa información de las particiones de validación. Sin modificar ni ejecutar el notebook |
 | 2026-10-06 | Asistente | Se leyeron todas las celdas y las salidas guardadas del notebook 01 para explicar su funcionamiento paso a paso | Explicación de carga, exploración, limpieza, phik, partición, codificación y exportación. Sin modificar ni volver a ejecutar el notebook |
 | 2026-10-06 | Asistente | Se revisó la estructura, la documentación, la configuración de ejecución y la metadata para explicar el proyecto y su puesta en marcha | En esta copia se detectó uv 0.12.2 y `uv.lock`, pero no `.venv/Scripts/python.exe`. Los artefactos entrenados están presentes; el primer paso local es `uv sync`. No se instalaron dependencias ni se ejecutaron la app o los notebooks en esta revisión. `graphify-out/GRAPH_REPORT.md` describe otro proyecto (UJIIndoorLoc) |

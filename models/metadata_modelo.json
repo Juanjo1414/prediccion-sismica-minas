@@ -32,6 +32,6 @@
     "Precision_promedio": 0.19169725303485693,
     "Brier": 0.059477455148986405
   },
-  "fecha_entrenamiento": "2026-10-06T13:05:21",
+  "fecha_entrenamiento": "2026-10-08T16:31:50",
   "version_sklearn": "1.9.1"
 }

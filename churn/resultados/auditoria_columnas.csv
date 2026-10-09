@@ -1,0 +1,15 @@
+Columna,Tipo,Nulos,No_finitos,Valores_distintos,Minimo,Maximo
+Call  Failure,int64,0,0,37,0.0,36.0
+Complains,int64,0,0,2,0.0,1.0
+Subscription  Length,int64,0,0,45,3.0,47.0
+Charge  Amount,int64,0,0,11,0.0,10.0
+Seconds of Use,int64,0,0,1756,0.0,17090.0
+Frequency of use,int64,0,0,242,0.0,255.0
+Frequency of SMS,int64,0,0,405,0.0,522.0
+Distinct Called Numbers,int64,0,0,92,0.0,97.0
+Age Group,int64,0,0,5,1.0,5.0
+Tariff Plan,int64,0,0,2,1.0,2.0
+Status,int64,0,0,2,1.0,2.0
+Age,int64,0,0,5,15.0,55.0
+Customer Value,float64,0,0,2654,0.0,2165.28
+Churn,int64,0,0,2,0.0,1.0

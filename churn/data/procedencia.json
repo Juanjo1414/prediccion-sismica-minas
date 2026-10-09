@@ -1,0 +1,14 @@
+{
+  "dataset": "Iranian Churn",
+  "uci_id": 563,
+  "pagina": "https://archive.ics.uci.edu/dataset/563/iranian+churn+dataset",
+  "descarga": "https://archive.ics.uci.edu/static/public/563/iranian+churn+dataset.zip",
+  "doi": "10.24432/C5JW3Z",
+  "licencia": "CC BY 4.0",
+  "fecha_descarga": "2026-10-09",
+  "csv": "data/original/Customer Churn.csv",
+  "sha256_csv": "90d5fb6bd1630cd4de4b4d28fcf8b4cb92a8f6ab7484605b0799d47386f7dbe1",
+  "sha256_zip": "696c3a1812267980751f30d19193a1b430ac4ad76172bb089e664c96813ead66",
+  "original_modificado": false,
+  "nota": "Entradas de meses 1 a 9 y etiqueta al mes 12 según ficha UCI; sin fechas individuales ni ID en el CSV."
+}

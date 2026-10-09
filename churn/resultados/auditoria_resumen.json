@@ -1,0 +1,17 @@
+{
+  "filas": 3150,
+  "entradas": 13,
+  "abandono": 495,
+  "permanencia": 2655,
+  "nulos": 0,
+  "no_finitos": 0,
+  "repeticiones_exactas_adicionales": 300,
+  "filas_participantes_repeticion_exacta": 465,
+  "perfiles_unicos_13_entradas": 2836,
+  "grupos_perfil_repetido": 162,
+  "filas_en_perfiles_repetidos": 476,
+  "tamano_maximo_perfil": 11,
+  "perfiles_con_etiquetas_distintas": 14,
+  "filas_en_perfiles_con_etiquetas_distintas": 64,
+  "charge_amount_fuera_0_9": 7
+}

@@ -1,0 +1,13 @@
+Columna,Tipo,Valores_distintos,Nulos
+fallas_llamadas,int64,36,0
+quejas,int64,2,0
+antiguedad,int64,45,0
+nivel_cargo,int64,11,0
+segundos_uso,int64,1515,0
+frecuencia_uso,int64,237,0
+frecuencia_sms,int64,379,0
+numeros_distintos,int64,92,0
+grupo_edad,int64,5,0
+plan_tarifario,int64,2,0
+edad,int64,5,0
+abandono,int64,2,0
